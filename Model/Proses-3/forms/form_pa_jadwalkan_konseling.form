@@ -1,0 +1,45 @@
+{
+  "components": [
+    {
+      "label": "PENJADWALAN KONSELING DIGITAL (OLEH PA)",
+      "type": "text",
+      "id": "Text_PA_Jadwal",
+      "text": "Silakan tentukan waktu pertemuan dan ruang temu virtual untuk pembinaan mahasiswa bimbingan Anda."
+    },
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "Field_nama_pa_jad",
+      "key": "namaMahasiswa",
+      "disabled": true
+    },
+    {
+      "label": "Catatan Review Awal Anda Sebelumnya",
+      "type": "textarea",
+      "id": "Field_catatan_pa_jad",
+      "key": "catatanAwalPA",
+      "disabled": true
+    },
+    {
+      "label": "Atur Tanggal Pertemuan Konseling",
+      "type": "textfield",
+      "id": "Field_tgl_jad",
+      "key": "tanggalKonseling",
+      "description": "Contoh format: Senin, 15 Juni 2026",
+      "validate": { "required": true }
+    },
+    {
+      "label": "Tautan Ruang Virtual Pertemuan (Zoom/GMeet)",
+      "type": "textfield",
+      "id": "Field_link_jad",
+      "key": "linkKonseling",
+      "description": "Masukkan URL link room virtual bimbingan.",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "form_pa_jadwalkan_konseling",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}

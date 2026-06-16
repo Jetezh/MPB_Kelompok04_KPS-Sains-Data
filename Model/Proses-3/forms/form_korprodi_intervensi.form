@@ -1,0 +1,24 @@
+{
+  "components": [
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "Field_nama_int",
+      "key": "namaMahasiswa",
+      "disabled": true
+    },
+    {
+      "label": "Rumusan Rencana Intervensi Akademik Prodi",
+      "description": "Tuliskan keputusan strategis prodi (misal: pemberian opsi perpanjangan, kuota khusus, atau skema remedial khusus).",
+      "type": "textarea",
+      "id": "Field_rencana",
+      "key": "rencanaIntervensi",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_intervensi",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}

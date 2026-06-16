@@ -1,0 +1,43 @@
+{
+  "components": [
+    {
+      "label": "REVIEW STATUS MAHASISWA KRITIS (OLEH PA)",
+      "type": "text",
+      "id": "Text_PA_Review",
+      "text": "Silakan tinjau status akademik mahasiswa bimbingan Anda berikut ini sebelum menentukan jadwal pertemuan konseling."
+    },
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "Field_nama_pa_rev",
+      "key": "namaMahasiswa",
+      "disabled": true
+    },
+    {
+      "label": "Semester Aktif",
+      "type": "number",
+      "id": "Field_sem_pa_rev",
+      "key": "semesterAktif",
+      "disabled": true
+    },
+    {
+      "label": "Evaluasi Tingkat Kritis (Tier)",
+      "type": "number",
+      "id": "Field_tier_pa_rev",
+      "key": "tier",
+      "disabled": true
+    },
+    {
+      "label": "Catatan Evaluasi / Kendala Awal dari PA",
+      "type": "textarea",
+      "id": "Field_catatan_pa_rev",
+      "key": "catatanAwalPA",
+      "description": "Tuliskan analisis atau dugaan awal Anda mengenai kendala studi mahasiswa ini."
+    }
+  ],
+  "type": "default",
+  "id": "form_pa_review_status",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+  xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+  id="Definitions_SLA_RPS"
+  name="Penentuan SLA dan Prioritas Review RPS"
+  namespace="http://fik.prodi.bpm/dmn/sla-review-rps"
+  exporter="Camunda Modeler"
+  exporterVersion="5.44.0">
+
+  <decision id="Decision_SLAReviewRPS" name="Penentuan SLA dan Prioritas Review RPS">
+    <decisionTable id="DT_SLAReviewRPS" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Jenis dokumen RPS -->
+      <input id="Input_JenisRPS" label="Jenis RPS">
+        <inputExpression id="InputExpr_JenisRPS" typeRef="string">
+          <text>jenisRPS</text>
+        </inputExpression>
+        <inputValues id="IV_JenisRPS">
+          <text>"Baru","Revisi Minor","Revisi Mayor"</text>
+        </inputValues>
+      </input>
+
+      <!-- INPUT 2: Kategori mata kuliah -->
+      <input id="Input_KategoriMK" label="Kategori MK">
+        <inputExpression id="InputExpr_KategoriMK" typeRef="string">
+          <text>kategoriMK</text>
+        </inputExpression>
+        <inputValues id="IV_KategoriMK">
+          <text>"Wajib","Pilihan","Praktikum"</text>
+        </inputValues>
+      </input>
+
+      <!-- INPUT 3: Jumlah kali revisi sebelumnya (loop count) -->
+      <input id="Input_JumlahRevisi" label="Jumlah Revisi Sebelumnya">
+        <inputExpression id="InputExpr_JumlahRevisi" typeRef="integer">
+          <text>jumlahRevisiSebelumnya</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Sisa hari sebelum semester dimulai -->
+      <input id="Input_SisaHari" label="Sisa Hari ke Semester">
+        <inputExpression id="InputExpr_SisaHari" typeRef="integer">
+          <text>sisaHariKeSemester</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: SLA review per level (hari) -->
+      <output id="Output_SLA" label="SLA Review (Hari)" name="slaReviewHari" typeRef="integer" />
+
+      <!-- OUTPUT 2: Prioritas review -->
+      <output id="Output_Prioritas" label="Prioritas" name="prioritasReview" typeRef="string" />
+
+      <!-- OUTPUT 3: Tindakan jika melewati SLA -->
+      <output id="Output_Eskalasi" label="Tindakan Jika Melewati SLA" name="tindakanEskalasi" typeRef="string" />
+
+      <!-- Rule 1: Revisi ke-3+ → darurat, harus selesai segera -->
+      <rule id="Rule_RevisiBerulang">
+        <description>RPS sudah ditolak 3 kali atau lebih: eskalasi langsung ke Wadek 1</description>
+        <inputEntry id="IE_R1_Jenis"><text></text></inputEntry>
+        <inputEntry id="IE_R1_Kategori"><text></text></inputEntry>
+        <inputEntry id="IE_R1_Revisi"><text>&gt;= 3</text></inputEntry>
+        <inputEntry id="IE_R1_Sisa"><text></text></inputEntry>
+        <outputEntry id="OE_R1_SLA"><text>1</text></outputEntry>
+        <outputEntry id="OE_R1_Prioritas"><text>"DARURAT"</text></outputEntry>
+        <outputEntry id="OE_R1_Eskalasi"><text>"Eskalasi langsung ke Wadek 1 untuk mediasi"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Semester tinggal <= 7 hari, MK Wajib — darurat -->
+      <rule id="Rule_DeadlineMepetWajib">
+        <description>Kurang dari seminggu sebelum semester dan MK wajib belum selesai</description>
+        <inputEntry id="IE_R2_Jenis"><text></text></inputEntry>
+        <inputEntry id="IE_R2_Kategori"><text>"Wajib"</text></inputEntry>
+        <inputEntry id="IE_R2_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R2_Sisa"><text>&lt;= 7</text></inputEntry>
+        <outputEntry id="OE_R2_SLA"><text>1</text></outputEntry>
+        <outputEntry id="OE_R2_Prioritas"><text>"DARURAT"</text></outputEntry>
+        <outputEntry id="OE_R2_Eskalasi"><text>"Notif darurat ke semua reviewer + Korprodi follow-up langsung"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Semester tinggal <= 14 hari — tinggi -->
+      <rule id="Rule_DeadlineMepet">
+        <description>Kurang dari 2 minggu sebelum semester dimulai</description>
+        <inputEntry id="IE_R3_Jenis"><text></text></inputEntry>
+        <inputEntry id="IE_R3_Kategori"><text></text></inputEntry>
+        <inputEntry id="IE_R3_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R3_Sisa"><text>&lt;= 14</text></inputEntry>
+        <outputEntry id="OE_R3_SLA"><text>2</text></outputEntry>
+        <outputEntry id="OE_R3_Prioritas"><text>"TINGGI"</text></outputEntry>
+        <outputEntry id="OE_R3_Eskalasi"><text>"Reminder harian + eskalasi ke Korprodi jika melewati SLA"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: RPS Baru, MK Wajib — prioritas tinggi standar -->
+      <rule id="Rule_BaruWajib">
+        <description>RPS baru untuk MK wajib: perlu review menyeluruh</description>
+        <inputEntry id="IE_R4_Jenis"><text>"Baru"</text></inputEntry>
+        <inputEntry id="IE_R4_Kategori"><text>"Wajib"</text></inputEntry>
+        <inputEntry id="IE_R4_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R4_Sisa"><text>&gt; 14</text></inputEntry>
+        <outputEntry id="OE_R4_SLA"><text>5</text></outputEntry>
+        <outputEntry id="OE_R4_Prioritas"><text>"TINGGI"</text></outputEntry>
+        <outputEntry id="OE_R4_Eskalasi"><text>"Reminder H-2 + eskalasi ke Korprodi"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: RPS Baru, MK Pilihan / Praktikum — normal -->
+      <rule id="Rule_BaruPilihan">
+        <description>RPS baru untuk MK pilihan atau praktikum: waktu lebih longgar</description>
+        <inputEntry id="IE_R5_Jenis"><text>"Baru"</text></inputEntry>
+        <inputEntry id="IE_R5_Kategori"><text>"Pilihan","Praktikum"</text></inputEntry>
+        <inputEntry id="IE_R5_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R5_Sisa"><text>&gt; 14</text></inputEntry>
+        <outputEntry id="OE_R5_SLA"><text>7</text></outputEntry>
+        <outputEntry id="OE_R5_Prioritas"><text>"NORMAL"</text></outputEntry>
+        <outputEntry id="OE_R5_Eskalasi"><text>"Reminder H-2 + notifikasi Korprodi"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: Revisi Minor — cepat -->
+      <rule id="Rule_RevisiMinor">
+        <description>Revisi kecil (typo, format): review cepat</description>
+        <inputEntry id="IE_R6_Jenis"><text>"Revisi Minor"</text></inputEntry>
+        <inputEntry id="IE_R6_Kategori"><text></text></inputEntry>
+        <inputEntry id="IE_R6_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R6_Sisa"><text>&gt; 14</text></inputEntry>
+        <outputEntry id="OE_R6_SLA"><text>3</text></outputEntry>
+        <outputEntry id="OE_R6_Prioritas"><text>"NORMAL"</text></outputEntry>
+        <outputEntry id="OE_R6_Eskalasi"><text>"Reminder otomatis jika melewati 3 hari"</text></outputEntry>
+      </rule>
+
+      <!-- Rule 7: Revisi Mayor — perlu waktu -->
+      <rule id="Rule_RevisiMayor">
+        <description>Revisi besar (konten, sub-CPMK): perlu review ulang menyeluruh</description>
+        <inputEntry id="IE_R7_Jenis"><text>"Revisi Mayor"</text></inputEntry>
+        <inputEntry id="IE_R7_Kategori"><text></text></inputEntry>
+        <inputEntry id="IE_R7_Revisi"><text></text></inputEntry>
+        <inputEntry id="IE_R7_Sisa"><text>&gt; 14</text></inputEntry>
+        <outputEntry id="OE_R7_SLA"><text>5</text></outputEntry>
+        <outputEntry id="OE_R7_Prioritas"><text>"TINGGI"</text></outputEntry>
+        <outputEntry id="OE_R7_Eskalasi"><text>"Reminder H-2 + eskalasi ke Korprodi"</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_SLARPS">
+      <dmndi:DMNShape id="DMNShape_SLARPS" dmnElementRef="Decision_SLAReviewRPS">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

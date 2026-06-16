@@ -1,0 +1,45 @@
+{
+  "components": [
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "Field_namaMahasiswa",
+      "key": "namaMahasiswa",
+      "validate": { "required": true }
+    },
+    {
+      "label": "NIM Mahasiswa",
+      "type": "textfield",
+      "id": "Field_nimMahasiswa",
+      "key": "nimMahasiswa",
+      "validate": { "required": true }
+    },
+    {
+      "label": "Semester Aktif Saat Ini",
+      "type": "number",
+      "id": "Field_semesterAktif",
+      "key": "semesterAktif",
+      "validate": { "required": true }
+    },
+    {
+      "label": "IPK Kumulatif Mahasiswa",
+      "type": "number",
+      "id": "Field_ipkKumulatif",
+      "key": "ipkKumulatif",
+      "description": "Contoh pengisian menggunakan titik: 2.35 atau 3.40",
+      "validate": { "required": true }
+    },
+    {
+      "label": "Jumlah Mata Kuliah Mengulang (E/D)",
+      "type": "number",
+      "id": "Field_mkMengulang",
+      "key": "mkMengulang",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "form_start_pemantauan",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}

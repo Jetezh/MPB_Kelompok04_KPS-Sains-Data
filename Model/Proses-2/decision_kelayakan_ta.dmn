@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+  xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+  id="Definitions_KelayakanTA"
+  name="Kelayakan Pengajuan Pembimbing Tugas Akhir"
+  namespace="http://fik.prodi.bpm/dmn/kelayakan-ta"
+  exporter="Camunda Modeler"
+  exporterVersion="5.44.0">
+
+  <decision id="Decision_KelayakanTA" name="Penentuan Kelayakan dan Prioritas Pengajuan TA">
+    <decisionTable id="DT_KelayakanTA" hitPolicy="FIRST">
+
+      <!-- INPUT 1: Total SKS yang telah ditempuh -->
+      <input id="Input_TotalSKS" label="Total SKS Ditempuh">
+        <inputExpression id="InputExpr_TotalSKS" typeRef="integer">
+          <text>totalSKS</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 2: IPK Kumulatif -->
+      <input id="Input_IPK" label="IPK Kumulatif">
+        <inputExpression id="InputExpr_IPK" typeRef="double">
+          <text>ipkMahasiswa</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 3: Sisa kuota dosen yang diusulkan -->
+      <input id="Input_KuotaSisa" label="Sisa Kuota Dosen">
+        <inputExpression id="InputExpr_KuotaSisa" typeRef="integer">
+          <text>kuotaSisaDosen</text>
+        </inputExpression>
+      </input>
+
+      <!-- INPUT 4: Apakah ada MK wajib yang belum lulus -->
+      <input id="Input_MKWajibBelumLulus" label="MK Wajib Belum Lulus?">
+        <inputExpression id="InputExpr_MKWajib" typeRef="boolean">
+          <text>adaMKWajibBelumLulus</text>
+        </inputExpression>
+      </input>
+
+      <!-- OUTPUT 1: Status kelayakan -->
+      <output id="Output_Status" label="Status Kelayakan" name="statusKelayakan" typeRef="string" />
+
+      <!-- OUTPUT 2: Routing proses -->
+      <output id="Output_Routing" label="Routing" name="routingProses" typeRef="string" />
+
+      <!-- OUTPUT 3: Catatan sistem -->
+      <output id="Output_Catatan" label="Catatan" name="catatanSistem" typeRef="string" />
+
+      <!-- Rule 1: SKS kurang dari 130 — langsung ditolak -->
+      <rule id="Rule_SKSKurang">
+        <description>Mahasiswa belum memenuhi syarat minimal 130 SKS</description>
+        <inputEntry id="IE_R1_SKS"><text>&lt; 130</text></inputEntry>
+        <inputEntry id="IE_R1_IPK"><text></text></inputEntry>
+        <inputEntry id="IE_R1_Kuota"><text></text></inputEntry>
+        <inputEntry id="IE_R1_MKWajib"><text></text></inputEntry>
+        <outputEntry id="OE_R1_Status"><text>"DITOLAK"</text></outputEntry>
+        <outputEntry id="OE_R1_Routing"><text>"End — Tidak Layak"</text></outputEntry>
+        <outputEntry id="OE_R1_Catatan"><text>"SKS belum mencapai 130. Silakan selesaikan terlebih dahulu."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 2: Ada MK wajib belum lulus — ditolak dengan catatan -->
+      <rule id="Rule_MKWajib">
+        <description>Masih ada MK wajib prasyarat TA yang belum lulus</description>
+        <inputEntry id="IE_R2_SKS"><text>&gt;= 130</text></inputEntry>
+        <inputEntry id="IE_R2_IPK"><text></text></inputEntry>
+        <inputEntry id="IE_R2_Kuota"><text></text></inputEntry>
+        <inputEntry id="IE_R2_MKWajib"><text>true</text></inputEntry>
+        <outputEntry id="OE_R2_Status"><text>"DITOLAK"</text></outputEntry>
+        <outputEntry id="OE_R2_Routing"><text>"End — MK Wajib Belum Lulus"</text></outputEntry>
+        <outputEntry id="OE_R2_Catatan"><text>"Terdapat MK wajib prasyarat TA yang belum lulus. Selesaikan terlebih dahulu."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 3: Kuota dosen habis — redirect ke marketplace -->
+      <rule id="Rule_KuotaHabis">
+        <description>Dosen yang diusulkan sudah penuh kuotanya</description>
+        <inputEntry id="IE_R3_SKS"><text>&gt;= 130</text></inputEntry>
+        <inputEntry id="IE_R3_IPK"><text></text></inputEntry>
+        <inputEntry id="IE_R3_Kuota"><text>0</text></inputEntry>
+        <inputEntry id="IE_R3_MKWajib"><text>false</text></inputEntry>
+        <outputEntry id="OE_R3_Status"><text>"LAYAK — KUOTA PENUH"</text></outputEntry>
+        <outputEntry id="OE_R3_Routing"><text>"Redirect ke Advisor Marketplace"</text></outputEntry>
+        <outputEntry id="OE_R3_Catatan"><text>"Mahasiswa layak, namun dosen usulan sudah penuh. Pilih dosen lain di Marketplace."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 4: Layak, IPK tinggi, kuota tersedia — prioritas tinggi -->
+      <rule id="Rule_PrioritasTinggi">
+        <description>IPK >= 3.5 dengan kuota tersedia: jalur cepat</description>
+        <inputEntry id="IE_R4_SKS"><text>&gt;= 130</text></inputEntry>
+        <inputEntry id="IE_R4_IPK"><text>&gt;= 3.5</text></inputEntry>
+        <inputEntry id="IE_R4_Kuota"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_R4_MKWajib"><text>false</text></inputEntry>
+        <outputEntry id="OE_R4_Status"><text>"LAYAK — PRIORITAS TINGGI"</text></outputEntry>
+        <outputEntry id="OE_R4_Routing"><text>"Lanjut ke Submit Request"</text></outputEntry>
+        <outputEntry id="OE_R4_Catatan"><text>"Mahasiswa berprestasi. Request diteruskan langsung ke dosen pembimbing."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 5: Layak, IPK standar, kuota tersedia — normal -->
+      <rule id="Rule_Normal">
+        <description>Memenuhi semua syarat dengan kondisi normal</description>
+        <inputEntry id="IE_R5_SKS"><text>&gt;= 130</text></inputEntry>
+        <inputEntry id="IE_R5_IPK"><text>&gt;= 2.0</text></inputEntry>
+        <inputEntry id="IE_R5_Kuota"><text>&gt;= 1</text></inputEntry>
+        <inputEntry id="IE_R5_MKWajib"><text>false</text></inputEntry>
+        <outputEntry id="OE_R5_Status"><text>"LAYAK — NORMAL"</text></outputEntry>
+        <outputEntry id="OE_R5_Routing"><text>"Lanjut ke Submit Request"</text></outputEntry>
+        <outputEntry id="OE_R5_Catatan"><text>"Mahasiswa memenuhi syarat. Request diteruskan ke dosen pembimbing."</text></outputEntry>
+      </rule>
+
+      <!-- Rule 6: IPK di bawah 2.0 — perlu konsultasi PA dulu -->
+      <rule id="Rule_IPKRendah">
+        <description>IPK rendah: perlu konsultasi dengan PA sebelum mengajukan TA</description>
+        <inputEntry id="IE_R6_SKS"><text>&gt;= 130</text></inputEntry>
+        <inputEntry id="IE_R6_IPK"><text>&lt; 2.0</text></inputEntry>
+        <inputEntry id="IE_R6_Kuota"><text></text></inputEntry>
+        <inputEntry id="IE_R6_MKWajib"><text>false</text></inputEntry>
+        <outputEntry id="OE_R6_Status"><text>"LAYAK BERSYARAT"</text></outputEntry>
+        <outputEntry id="OE_R6_Routing"><text>"Konsultasi PA Terlebih Dahulu"</text></outputEntry>
+        <outputEntry id="OE_R6_Catatan"><text>"IPK di bawah 2.0. Mahasiswa wajib konsultasi dengan Dosen PA sebelum melanjutkan."</text></outputEntry>
+      </rule>
+
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="DMNDiagram_KelayakanTA">
+      <dmndi:DMNShape id="DMNShape_KelayakanTA" dmnElementRef="Decision_KelayakanTA">
+        <dc:Bounds height="80" width="180" x="160" y="100" />
+      </dmndi:DMNShape>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+
+</definitions>

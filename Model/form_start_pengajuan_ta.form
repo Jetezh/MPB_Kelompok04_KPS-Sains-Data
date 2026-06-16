@@ -1,0 +1,85 @@
+{
+  "components": [
+    {
+      "text": "### Formulir Pengajuan Pembimbing Tugas Akhir\n\nSistem akan memvalidasi data akademik Anda secara otomatis melalui middleware UNISIS.",
+      "type": "text",
+      "id": "header_text"
+    },
+    {
+      "label": "Nama Lengkap Mahasiswa",
+      "type": "textfield",
+      "id": "field_nama",
+      "key": "namaMahasiswa",
+      "validate": {
+        "required": true,
+        "minLength": 3,
+        "maxLength": 100
+      },
+      "description": "Masukkan nama lengkap sesuai KTM."
+    },
+    {
+      "label": "NIM (Nomor Induk Mahasiswa)",
+      "type": "textfield",
+      "id": "field_nim",
+      "key": "nimMahasiswa",
+      "validate": {
+        "required": true,
+        "pattern": "^[0-9]{10}$"
+      },
+      "description": "10 digit angka NIM Anda."
+    },
+    {
+      "label": "Total SKS yang Telah Ditempuh",
+      "type": "number",
+      "id": "field_sks",
+      "key": "totalSKS",
+      "validate": {
+        "required": true,
+        "min": 0,
+        "max": 160
+      },
+      "description": "Minimal 130 SKS untuk mengajukan TA."
+    },
+    {
+      "label": "Nama Dosen Pembimbing yang Diusulkan",
+      "type": "textfield",
+      "id": "field_dosen",
+      "key": "dosenUsulan",
+      "validate": {
+        "required": true,
+        "minLength": 3
+      },
+      "description": "Nama dosen yang ingin Anda ajukan sebagai pembimbing TA."
+    },
+    {
+      "label": "Judul Tugas Akhir yang Diajukan",
+      "type": "textfield",
+      "id": "field_judul",
+      "key": "judulTA",
+      "validate": {
+        "required": true,
+        "minLength": 10,
+        "maxLength": 300
+      },
+      "description": "Judul tentatif proposal TA Anda."
+    },
+    {
+      "label": "Ringkasan/Abstrak Proposal",
+      "type": "textarea",
+      "id": "field_abstrak",
+      "key": "abstrakTA",
+      "validate": {
+        "required": true,
+        "minLength": 50,
+        "maxLength": 1000
+      },
+      "description": "Jelaskan secara singkat latar belakang, tujuan, dan metode penelitian."
+    }
+  ],
+  "type": "default",
+  "id": "FormStart_PemilihanPembimbingTA",
+  "exporter": "Camunda Modeler",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.21.0",
+  "schemaVersion": 16
+}

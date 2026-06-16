@@ -1,0 +1,37 @@
+{
+  "components": [
+    {
+      "label": "Halo, Vega! Silakan Periksa Hasil Konseling Akademik Anda:",
+      "type": "text",
+      "id": "Text_Mhs",
+      "text": "Evaluasi ini ditujukan untuk menjaga agar masa studi Anda tetap aman dan terhindar dari batas Drop Out fakultas."
+    },
+    {
+      "label": "Jadwal Pertemuan Pembinaan",
+      "type": "textfield",
+      "id": "Field_mhs_jdwl",
+      "key": "tanggalKonseling",
+      "disabled": true
+    },
+    {
+      "label": "Tautan Pertemuan",
+      "type": "textfield",
+      "id": "Field_mhs_link",
+      "key": "linkKonseling",
+      "disabled": true
+    },
+    {
+      "label": "Pernyataan Komitmen Mahasiswa",
+      "description": "Dengan mencentang kotak ini, saya sadar akan status masa studi saya dan berkomitmen penuh menjalankan arahan perbaikan kurikulum prodi.",
+      "type": "checkbox",
+      "id": "Field_mhs_sah",
+      "key": "isMahasiswaSetuju",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "form_mahasiswa_konfirmasi",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}

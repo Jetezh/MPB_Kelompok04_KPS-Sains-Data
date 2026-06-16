@@ -1,0 +1,43 @@
+{
+  "components": [
+    {
+      "label": "INFORMASI MAHASISWA KRITIS",
+      "type": "text",
+      "id": "Text_Header",
+      "text": "Berikut adalah data mahasiswa yang masuk ke radar Early Warning System Program Studi:"
+    },
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "Field_nama",
+      "key": "namaMahasiswa",
+      "disabled": true
+    },
+    {
+      "label": "NIM",
+      "type": "textfield",
+      "id": "Field_nim",
+      "key": "nimMahasiswa",
+      "disabled": true
+    },
+    {
+      "label": "Evaluasi Tingkat Kritis (Tier)",
+      "type": "number",
+      "id": "Field_tier",
+      "key": "tier",
+      "disabled": true
+    },
+    {
+      "label": "Apakah Perlu Intervensi Langsung dari Prodi?",
+      "description": "Centang YA jika Prodi akan mengambil alih penentuan rencana, kosongkan jika didelegasikan ke Dosen PA.",
+      "type": "checkbox",
+      "id": "Field_intervensi",
+      "key": "perluIntervensi"
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_monitor",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 4
+}
