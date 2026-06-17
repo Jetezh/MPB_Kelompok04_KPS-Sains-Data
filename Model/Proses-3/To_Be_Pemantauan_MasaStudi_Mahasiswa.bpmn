@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:ns1="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://fik.prodi.bpm/pemantauan-masa-studi-to-be" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="Pemantauan_MasaStudi_Mahasiswa">
+    <bpmn:participant id="Pool_MasaStudi_ToBe" name="Pemantauan Masa Studi Mahasiswa (TO-BE)" processRef="Proc_MasaStudi_ToBe">
+      <bpmn:documentation>Proses pemantauan masa studi pada kondisi TO-BE. Menggunakan middleware API untuk sinkronisasi harian dari UNISIS ke dashboard web. Dilengkapi Tiered Early Warning System (3 tingkat) yang mengirim notifikasi otomatis sesuai urgensi semester mahasiswa.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_Tier1">
+      <bpmn:text>Tier 1 (Sem 10): Warning ke PA. Tier 2 (Sem 12): Critical ke PA + Korprodi. Tier 3 (Sem 14-15): Terminal + eskalasi Dekanat.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_SyncAuto">
+      <bpmn:text>Sinkronisasi harian otomatis dari UNISIS — menghilangkan data lag dan ketergantungan ekspor manual.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_Sync" sourceRef="TextAnn_SyncAuto" targetRef="T_SinkronisasiOtomatis" />
+    <bpmn:association id="Assoc_Ann_Tier" sourceRef="TextAnn_Tier1" targetRef="GW_TierLevel" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_MasaStudi_ToBe" name="Pemantauan Masa Studi - TO-BE" isExecutable="true" ns1:historyTimeToLive="30">
+    <bpmn:laneSet id="LS_MasaStudi_ToBe">
+      <bpmn:lane id="Lane_Mahasiswa_ToBe" name="Mahasiswa">
+        <bpmn:documentation>Mahasiswa menerima notifikasi peringatan dan dapat merespons secara digital melalui portal akademik, mengkonfirmasi status studi mereka tanpa harus datang ke kampus.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_MahasiswaResponsDigital</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_DosenPA_ToBe" name="Dosen PA">
+        <bpmn:documentation>Dosen PA menerima notifikasi otomatis dari sistem dan dapat mereview status mahasiswanya di dashboard kapan saja. Menjadwalkan konseling digital tanpa perlu rapat koordinasi terlebih dahulu.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_PAReviewDashboard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_PAKonseling</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Korprodi_ToBe" name="Koordinator Program Studi (Korprodi)">
+        <bpmn:documentation>Korprodi memantau kondisi akademik seluruh mahasiswa melalui dashboard real-time dari mana saja. Hanya melakukan tindakan intervensi ketika sistem menandai kasus yang memerlukan keputusan strategis.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_KorprodiMonitorDashboard</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_PerluIntervensi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_IntervensiSelesai</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiTetapkanIntervensi</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistem_MS" name="SISTEM (Automated)">
+        <bpmn:documentation>Lane sistem otomatis yang menjalankan sinkronisasi data harian, evaluasi tier peringatan, dan pengiriman notifikasi tanpa intervensi manusia.</bpmn:documentation>
+        <bpmn:flowNodeRef>GW_TierLevel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_SinkronisasiOtomatis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimNotifTier1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimNotifTier2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimNotifTier3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoKirimKontakDarurat</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_TidakAdaKritis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SE_SistemSync</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_EvaluasiTieredWarning</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:sequenceFlow id="Flow_0kevwrx" sourceRef="T_KirimNotifTier1" targetRef="T_AutoKirimKontakDarurat" />
+    <bpmn:sequenceFlow id="F_TB_MS_11" sourceRef="T_KirimNotifTier3" targetRef="T_KirimNotifTier1" />
+    <bpmn:sequenceFlow id="F_TB_MS_10" sourceRef="T_KirimNotifTier2" targetRef="T_KirimNotifTier1" />
+    <bpmn:sequenceFlow id="F_TB_MS_02" sourceRef="T_SinkronisasiOtomatis" targetRef="T_EvaluasiTieredWarning" />
+    <bpmn:sequenceFlow id="F_TB_MS_13" sourceRef="T_MahasiswaResponsDigital" targetRef="EE_IntervensiSelesai" />
+    <bpmn:sequenceFlow id="F_TB_MS_PA_out" sourceRef="T_PAKonseling" targetRef="T_MahasiswaResponsDigital" />
+    <bpmn:sequenceFlow id="F_TB_MS_PA_konseling" sourceRef="T_PAReviewDashboard" targetRef="T_PAKonseling" />
+    <bpmn:sequenceFlow id="F_TB_MS_intervensi_tidak" name="Tidak&#10;(Delegasi ke PA)" sourceRef="GW_PerluIntervensi" targetRef="T_PAReviewDashboard">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${perluIntervensi == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_intervensi_ya" name="Ya" sourceRef="GW_PerluIntervensi" targetRef="T_KorprodiTetapkanIntervensi">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${perluIntervensi == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_peril" sourceRef="T_KorprodiMonitorDashboard" targetRef="GW_PerluIntervensi" />
+    <bpmn:sequenceFlow id="Flow_1mnuh6e" sourceRef="T_KirimNotifTier1" targetRef="T_KorprodiMonitorDashboard" />
+    <bpmn:sequenceFlow id="F_TB_MS_12" sourceRef="T_AutoKirimKontakDarurat" targetRef="T_KorprodiMonitorDashboard" />
+    <bpmn:sequenceFlow id="F_TB_MS_08_T3" name="Tier 3&#10;(Sem 14-15)" sourceRef="GW_TierLevel" targetRef="T_KirimNotifTier3">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tier == 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_07_T2" name="Tier 2&#10;(Sem 12, 13)" sourceRef="GW_TierLevel" targetRef="T_KirimNotifTier2">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tier == 2}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_06_T1" name="Tier 1&#10;(Sem 9, 10, 11)" sourceRef="GW_TierLevel" targetRef="T_KirimNotifTier1">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tier == 1}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_05_tidak" name="Tidak Ada Kritis" sourceRef="GW_TierLevel" targetRef="EE_TidakAdaKritis">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${tier == 0}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_MS_03" sourceRef="T_EvaluasiTieredWarning" targetRef="GW_TierLevel" />
+    <bpmn:sequenceFlow id="F_TB_MS_01" sourceRef="SE_SistemSync" targetRef="T_SinkronisasiOtomatis" />
+    <bpmn:serviceTask id="T_AutoKirimKontakDarurat" name="Auto-Kirim Notifikasi&#10;ke Kontak Darurat&#10;(Orang Tua/Wali)">
+      <bpmn:documentation>Sistem secara otomatis mengirim notifikasi ke kontak darurat (orang tua/wali) yang tersimpan di database registrasi. Menggantikan pencarian manual kontak yang sering gagal karena data kadaluarsa.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 3 -&gt; Broadcast WA Gateway",
+    "description": "Sistem otomatis berhasil terhubung ke API WhatsApp Gateway untuk mengirimkan pesan peringatan resmi kepada wali murid.",
+    "color": 15158332, 
+    "fields": [
+      { "name": "Penerima Luar", "value": "Orang Tua / Wali dari " + nama, "inline": true },
+      { "name": "Status API", "value": "✅ DELIVERED (100%)", "inline": true }
+    ],
+    "footer": { "text": "Third-Party Messaging Gateway System" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0kevwrx</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_12</bpmn:outgoing>
+      <bpmn:property id="Property_0sn9kv3" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_10scr9u">
+        <bpmn:sourceRef>DataRef_KontakDarurat_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0sn9kv3</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_KirimNotifTier3" name="Tier 3 (Terminal):&#10;Notif + Eskalasi ke Dekanat&#10;(Semester 14-15)">
+      <bpmn:documentation>Sistem mengirim notifikasi Terminal ke PA, Korprodi, dan Dekanat: mahasiswa memasuki semester 14-15 (batas akhir). Eskalasi darurat dipicu secara otomatis.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 3 -&gt; Eskalasi Fatal Tier 3",
+    "description": "💀 STATUS DARURAT! Mahasiswa menyentuh batas maksimal masa studi kampus. Berkas perkara otomatis dilempar ke tingkat fakultas.",
+    "color": 12597547, 
+    "fields": [
+      { "name": "Target Kasus", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "Tujuan Eskalasi", "value": "Pimpinan Jurusan / Dekanat (`Pimpinan`)", "inline": true }
+    ],
+    "footer": { "text": "Status: Critical Threat Drop-Out" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_MS_08_T3</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_11</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_KirimNotifTier2" name="Tier 2 (Critical):&#10;Kirim Notif ke PA + Korprodi&#10;(Semester 12)">
+      <bpmn:documentation>Sistem mengirim notifikasi Critical ke Dosen PA dan Korprodi: mahasiswa memasuki semester 12. Diperlukan konseling intensif dan rencana akselerasi penyelesaian studi.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 3 -&gt; Peringatan Kasus Tier 2",
+    "description": "🚨 Kasus kritis terdeteksi! Sistem mendistribusikan tugas penanganan kolaboratif kepada jajaran pimpinan prodi.",
+    "color": 16742144, 
+    "fields": [
+      { "name": "Target Kasus", "value": nama + " (" + nim + ")", "inline": false },
+      { "name": "Tim Kerja", "value": "Korprodi (`KPS`) &amp; Dosen PA (`Dosen`)", "inline": true }
+    ],
+    "footer": { "text": "Action Required: Segera agendakan konseling" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_MS_07_T2</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_10</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_KirimNotifTier1" name="Tier 1 (Warning):&#10;Kirim Notif ke PA&#10;(Semester 10)">
+      <bpmn:documentation>Sistem mengirim notifikasi Warning otomatis ke Dosen PA: mahasiswa telah memasuki semester 10. PA diingatkan untuk mulai memantau perkembangan studi mahasiswa tersebut.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 3 -&gt; Peringatan Dini Tier 1",
+    "description": "⚠️ Sistem melepaskan tugas peninjauan awal akademik karena mahasiswa terdeteksi masuk batas semester rawan.",
+    "color": 16766720, 
+    "fields": [
+      { "name": "Target Kasus", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "Aktor Pelaksana", "value": "Dosen PA (`Dosen`)", "inline": true }
+    ],
+    "footer": { "text": "Action Required: Review di Tasklist" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_MS_06_T1</bpmn:incoming>
+      <bpmn:incoming>F_TB_MS_10</bpmn:incoming>
+      <bpmn:incoming>F_TB_MS_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_1mnuh6e</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0kevwrx</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_SinkronisasiOtomatis" name="Sinkronisasi Data UNISIS&#10;ke Dashboard Web&#10;(Middleware API)">
+      <bpmn:documentation>Middleware API menarik data terbaru dari UNISIS (SKS, status UKT, semester aktif) dan memperbarui dashboard web secara otomatis. Menghilangkan data lag yang terjadi pada AS-IS.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">// Inisialisasi data simulasi awal di database Camunda
+execution.setVariable('namaMahasiswa', 'Vega Setiawan');
+execution.setVariable('nimMahasiswa', '2310512108');
+execution.setVariable('semesterAktif', 12); // Ganti angka ini (10, 12, atau 14) untuk tes jalur
+
+var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+var sem = execution.getVariable('semesterAktif');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] ⏱️ PROSES 3 -&gt; Sinkronisasi UNISIS",
+    "description": "Sistem berhasil menarik data akademik mahasiswa dari database UNISIS secara berkala.",
+    "color": 4144959, 
+    "fields": [
+      { "name": "Subjek", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "Semester Aktif", "value": "" + sem, "inline": true }
+    ],
+    "footer": { "text": "Proses ID: Proc_MasaStudi_ToBe" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_MS_01</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_02</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Dashboard">
+        <bpmn:targetRef>DataRef_Dashboard_MS</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EE_IntervensiSelesai" name="Intervensi Akademik&#10;Selesai Tercatat">
+      <bpmn:documentation>Proses selesai dengan intervensi akademik tercatat di sistem. Seluruh histori tindakan tersimpan sebagai audit trail untuk keperluan akreditasi.</bpmn:documentation>
+      <bpmn:incoming>F_TB_MS_13</bpmn:incoming>
+      <bpmn:incoming>Flow_0vyosz8</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataObjectReference id="DataRef_Dashboard_MS" name="Dashboard Analitik Real-Time" dataObjectRef="DataObject_Dashboard_MS">
+      <bpmn:documentation>Data tersinkronisasi otomatis dari UNISIS ke web. Menampilkan distribusi tier peringatan dan status intervensi. Dapat diakses Korprodi dan PA dari mana saja.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_Dashboard_MS" />
+    <bpmn:dataObjectReference id="DataRef_KontakDarurat_MS" name="Data Kontak Darurat (Wali/Orang Tua)" dataObjectRef="DataObject_KontakDarurat_MS">
+      <bpmn:documentation>Kontak wali mahasiswa dari database registrasi yang diperbarui periodik. Digunakan sistem untuk notifikasi otomatis Tier 3 — menggantikan pencarian manual.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_KontakDarurat_MS" />
+    <bpmn:userTask id="T_MahasiswaResponsDigital" name="Mahasiswa Respons&#10;Digital: Konfirmasi&#10;Status Studi" ns1:formRef="form_mahasiswa_konfirmasi" ns1:formRefBinding="latest" ns1:candidateGroups="Mahasiswa">
+      <bpmn:documentation>Mahasiswa merespons secara digital melalui portal akademik: mengkonfirmasi status aktif, mengajukan cuti, atau menyatakan pengunduran diri. Semua respons tercatat dengan timestamp.</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_PA_out</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_13</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_PAKonseling" name="PA Jadwalkan&#10;Konseling Digital&#10;dengan Mahasiswa" ns1:formRef="form_pa_jadwalkan_konseling" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>PA menjadwalkan dan melaksanakan konseling digital dengan mahasiswa melalui platform terintegrasi. Hasil konseling dapat dicatat langsung di sistem.</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_PA_konseling</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_PA_out</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_PAReviewDashboard" name="PA Review Status&#10;Mahasiswanya di&#10;Dashboard" ns1:formRef="form_pa_review_status" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>Dosen PA mereview status mahasiswanya di dashboard — melihat detail SKS, histori semester, dan notifikasi tier — sebelum menjadwalkan konseling.</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_intervensi_tidak</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_PA_konseling</bpmn:outgoing>
+      <bpmn:property id="Property_1jo23z6" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1u7stev">
+        <bpmn:sourceRef>DataRef_Dashboard_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1jo23z6</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_PerluIntervensi" name="Perlu Intervensi&#10;Langsung?">
+      <bpmn:documentation>Keputusan Korprodi: apakah kasus memerlukan intervensi langsung dari Korprodi (Tier 3/kasus kompleks) atau cukup didelegasikan ke Dosen PA?</bpmn:documentation>
+      <bpmn:incoming>F_TB_MS_peril</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_intervensi_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_MS_intervensi_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_KorprodiMonitorDashboard" name="Korprodi Monitor&#10;Dashboard Real-Time&#10;(Anywhere-Anytime)" ns1:formRef="form_korprodi_monitor" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi memantau dashboard analitik real-time yang menampilkan distribusi mahasiswa per tier, tren semester, dan status intervensi. Data tersedia kapan saja tanpa perlu meminta rekap dari Admin.</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_12</bpmn:incoming>
+      <bpmn:incoming>Flow_1mnuh6e</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_peril</bpmn:outgoing>
+      <bpmn:property id="Property_09uz44m" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0vwswn2">
+        <bpmn:sourceRef>DataRef_Dashboard_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_09uz44m</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_TierLevel" name="Tier Level&#10;Mahasiswa?">
+      <bpmn:documentation>Gateway yang mendistribusikan mahasiswa ke jalur penanganan sesuai tier: tidak ada kritis (selesai), Tier 1 (notif ke PA), Tier 2 (notif PA + Korprodi), Tier 3 (eskalasi + kontak darurat).</bpmn:documentation>
+      <bpmn:incoming>F_TB_MS_03</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_05_tidak</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_MS_06_T1</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_MS_07_T2</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_MS_08_T3</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EE_TidakAdaKritis" name="Tidak Ada Mahasiswa&#10;Masa Kritis">
+      <bpmn:documentation>Proses selesai tanpa aksi: tidak ada mahasiswa yang masuk kategori kritis pada periode sinkronisasi ini.</bpmn:documentation>
+      <bpmn:incoming>F_TB_MS_05_tidak</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="SE_SistemSync" name="Sinkronisasi Terjadwal&#10;(Harian/Real-Time)" ns1:formRef="form_start_pemantauan" ns1:formRefBinding="latest">
+      <bpmn:documentation>Timer event terjadwal yang memicu sinkronisasi data otomatis setiap hari (atau real-time). Menggantikan proses ekspor manual yang hanya dilakukan secara periodik di awal semester.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData />
+      </bpmn:extensionElements>
+      <bpmn:outgoing>F_TB_MS_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:businessRuleTask id="T_EvaluasiTieredWarning" name="Evaluasi Otomatis&#10;Tiered Early Warning&#10;System" ns1:resultVariable="tier" ns1:decisionRef="DecisionTierKlasifikasi" ns1:mapDecisionResult="singleEntry" ns1:decisionRefTenantId="4">
+      <bpmn:documentation>Sistem mengevaluasi data setiap mahasiswa berdasarkan jumlah semester aktif dan mengklasifikasikannya ke dalam tiga tier: Tier 1 (Warning/Sem 10), Tier 2 (Critical/Sem 12), Tier 3 (Terminal/Sem 14-15).</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_02</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_03</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:sequenceFlow id="Flow_0vyosz8" sourceRef="T_KorprodiTetapkanIntervensi" targetRef="EE_IntervensiSelesai" />
+    <bpmn:userTask id="T_KorprodiTetapkanIntervensi" name="Korprodi Tetapkan&#10;Rencana Intervensi&#10;di Sistem" ns1:formRef="form_korprodi_intervensi" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi mencatat rencana intervensi resmi di sistem (DO, cuti paksa, perpanjangan khusus) yang langsung terhubung ke catatan akademik mahasiswa.</bpmn:documentation>
+      <bpmn:extensionElements />
+      <bpmn:incoming>F_TB_MS_intervensi_ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_MS_13</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0vyosz8</bpmn:outgoing>
+    </bpmn:userTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_MasaStudi_ToBe">
+    <bpmndi:BPMNPlane id="Plane_MasaStudi_ToBe" bpmnElement="Pemantauan_MasaStudi_Mahasiswa">
+      <bpmndi:BPMNShape id="S_Pool_MS_ToBe" bpmnElement="Pool_MasaStudi_ToBe" isHorizontal="true">
+        <dc:Bounds x="140" y="80" width="1680" height="810" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Sistem_MS" bpmnElement="Lane_Sistem_MS" isHorizontal="true">
+        <dc:Bounds x="170" y="80" width="1650" height="255" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Korprodi_ToBe" bpmnElement="Lane_Korprodi_ToBe" isHorizontal="true">
+        <dc:Bounds x="170" y="335" width="1650" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_DosenPA_ToBe" bpmnElement="Lane_DosenPA_ToBe" isHorizontal="true">
+        <dc:Bounds x="170" y="520" width="1650" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Mahasiswa_ToBe" bpmnElement="Lane_Mahasiswa_ToBe" isHorizontal="true">
+        <dc:Bounds x="170" y="705" width="1650" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0mcrjlh_di" bpmnElement="T_AutoKirimKontakDarurat">
+        <dc:Bounds x="1290" y="210" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1ngqjzw_di" bpmnElement="T_KirimNotifTier3">
+        <dc:Bounds x="830" y="240" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1vyl3tg_di" bpmnElement="T_KirimNotifTier2">
+        <dc:Bounds x="940" y="152" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_1qx1j8w_di" bpmnElement="T_KirimNotifTier1">
+        <dc:Bounds x="1120" y="100" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_0jkofbl_di" bpmnElement="T_SinkronisasiOtomatis">
+        <dc:Bounds x="310" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_IntervensiSelesai" bpmnElement="EE_IntervensiSelesai">
+        <dc:Bounds x="1732" y="407" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1710" y="357" width="79" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_Dashboard_MS" bpmnElement="DataRef_Dashboard_MS">
+        <dc:Bounds x="352" y="400" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="253" y="411" width="89" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_KontakDarurat_MS" bpmnElement="DataRef_KontakDarurat_MS">
+        <dc:Bounds x="1462" y="225" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1438" y="281" width="84" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_ResponsDigital" bpmnElement="T_MahasiswaResponsDigital">
+        <dc:Bounds x="1510" y="755" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_PAKonseling" bpmnElement="T_PAKonseling">
+        <dc:Bounds x="1510" y="570" width="120" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_PAReview" bpmnElement="T_PAReviewDashboard">
+        <dc:Bounds x="1340" y="570" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_Intervensi" bpmnElement="GW_PerluIntervensi" isMarkerVisible="true">
+        <dc:Bounds x="1340" y="400" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1327" y="368" width="77" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_MonitorDashboard" bpmnElement="T_KorprodiMonitorDashboard">
+        <dc:Bounds x="1160" y="385" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_TierLevel" bpmnElement="GW_TierLevel" isMarkerVisible="true">
+        <dc:Bounds x="670" y="215" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="664" y="272" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_TidakAdaKritis" bpmnElement="EE_TidakAdaKritis">
+        <dc:Bounds x="677" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="617" y="100" width="56" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_09opict_di" bpmnElement="SE_SistemSync">
+        <dc:Bounds x="222" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="208" y="265" width="66" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_060zms5_di" bpmnElement="T_EvaluasiTieredWarning">
+        <dc:Bounds x="490" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_TetapkanIntervensi" bpmnElement="T_KorprodiTetapkanIntervensi">
+        <dc:Bounds x="1510" y="385" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0kevwrx_di" bpmnElement="Flow_0kevwrx">
+        <di:waypoint x="1220" y="140" />
+        <di:waypoint x="1265" y="140" />
+        <di:waypoint x="1265" y="224" />
+        <di:waypoint x="1290" y="224" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_11" bpmnElement="F_TB_MS_11">
+        <di:waypoint x="930" y="280" />
+        <di:waypoint x="1100" y="280" />
+        <di:waypoint x="1100" y="160" />
+        <di:waypoint x="1120" y="160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_10" bpmnElement="F_TB_MS_10">
+        <di:waypoint x="1040" y="192" />
+        <di:waypoint x="1080" y="192" />
+        <di:waypoint x="1080" y="140" />
+        <di:waypoint x="1120" y="140" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_02" bpmnElement="F_TB_MS_02">
+        <di:waypoint x="410" y="240" />
+        <di:waypoint x="490" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_13" bpmnElement="F_TB_MS_13">
+        <di:waypoint x="1630" y="795" />
+        <di:waypoint x="1750" y="795" />
+        <di:waypoint x="1750" y="443" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_PA2" bpmnElement="F_TB_MS_PA_out">
+        <di:waypoint x="1570" y="650" />
+        <di:waypoint x="1570" y="755" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_PA" bpmnElement="F_TB_MS_PA_konseling">
+        <di:waypoint x="1460" y="610" />
+        <di:waypoint x="1510" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_tidak2" bpmnElement="F_TB_MS_intervensi_tidak">
+        <di:waypoint x="1365" y="450" />
+        <di:waypoint x="1365" y="570" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1279" y="476" width="82" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_ya" bpmnElement="F_TB_MS_intervensi_ya">
+        <di:waypoint x="1390" y="425" />
+        <di:waypoint x="1510" y="425" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1413" y="405" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_peril" bpmnElement="F_TB_MS_peril">
+        <di:waypoint x="1280" y="425" />
+        <di:waypoint x="1340" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1mnuh6e_di" bpmnElement="Flow_1mnuh6e">
+        <di:waypoint x="1190" y="180" />
+        <di:waypoint x="1190" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_12" bpmnElement="F_TB_MS_12">
+        <di:waypoint x="1350" y="290" />
+        <di:waypoint x="1350" y="318" />
+        <di:waypoint x="1240" y="318" />
+        <di:waypoint x="1240" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_T3" bpmnElement="F_TB_MS_08_T3">
+        <di:waypoint x="720" y="240" />
+        <di:waypoint x="760" y="240" />
+        <di:waypoint x="760" y="280" />
+        <di:waypoint x="830" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="759" y="281" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_T2" bpmnElement="F_TB_MS_07_T2">
+        <di:waypoint x="720" y="240" />
+        <di:waypoint x="760" y="240" />
+        <di:waypoint x="760" y="168" />
+        <di:waypoint x="940" y="168" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="870" y="168" width="64" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_T1" bpmnElement="F_TB_MS_06_T1">
+        <di:waypoint x="720" y="240" />
+        <di:waypoint x="760" y="240" />
+        <di:waypoint x="760" y="110" />
+        <di:waypoint x="1120" y="110" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1023" y="116" width="75" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_tidak" bpmnElement="F_TB_MS_05_tidak">
+        <di:waypoint x="695" y="215" />
+        <di:waypoint x="695" y="138" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="611" y="173" width="77" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_03" bpmnElement="F_TB_MS_03">
+        <di:waypoint x="590" y="240" />
+        <di:waypoint x="670" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_TB_01" bpmnElement="F_TB_MS_01">
+        <di:waypoint x="258" y="240" />
+        <di:waypoint x="310" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0vyosz8_di" bpmnElement="Flow_0vyosz8">
+        <di:waypoint x="1630" y="425" />
+        <di:waypoint x="1732" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_Tier1" bpmnElement="TextAnn_Tier1">
+        <dc:Bounds x="470" y="350" width="300" height="64" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_SyncAuto" bpmnElement="TextAnn_SyncAuto">
+        <dc:Bounds x="240" y="100" width="260" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DataInputAssociation_10scr9u_di" bpmnElement="DataInputAssociation_10scr9u">
+        <di:waypoint x="1462" y="250" />
+        <di:waypoint x="1390" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Dashboard" bpmnElement="DataOut_Dashboard">
+        <di:waypoint x="370" y="280" />
+        <di:waypoint x="370" y="400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1u7stev_di" bpmnElement="DataInputAssociation_1u7stev">
+        <di:waypoint x="370" y="450" />
+        <di:waypoint x="370" y="600" />
+        <di:waypoint x="1340" y="609" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0vwswn2_di" bpmnElement="DataInputAssociation_0vwswn2">
+        <di:waypoint x="388" y="425" />
+        <di:waypoint x="1160" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Sync" bpmnElement="Assoc_Ann_Sync">
+        <di:waypoint x="370" y="150" />
+        <di:waypoint x="370" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Tier" bpmnElement="Assoc_Ann_Tier">
+        <di:waypoint x="620" y="350" />
+        <di:waypoint x="620" y="300" />
+        <di:waypoint x="681" y="251" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

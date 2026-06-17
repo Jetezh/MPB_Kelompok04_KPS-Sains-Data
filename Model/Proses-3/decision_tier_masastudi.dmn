@@ -1,110 +1,45 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
-  xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
-  xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
-  xmlns:camunda="http://camunda.org/schema/1.0/dmn"
-  id="Definitions_TierMasaStudi"
-  name="KlasifikasiTierPemantauanMasaStudi"
-  namespace="http://fik.prodi.bpm/dmn/tier-masastudi"
-  exporter="Camunda Modeler"
-  exporterVersion="5.44.0">
-
-  <decision id="Decision_TierKlasifikasi" name="Penentuan Tier Early Warning Masa Studi">
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/" xmlns:camunda="http://camunda.org/schema/1.0/dmn" id="Definitions_TierMasaStudi" name="KlasifikasiTierPemantauanMasaStudi" namespace="http://camunda.org/schema/1.0/dmn">
+  <decision id="DecisionTierKlasifikasi" name="Penentuan Tier Early Warning Masa Studi" camunda:historyTimeToLive="30">
     <decisionTable id="DT_TierKlasifikasi" hitPolicy="FIRST">
-
       <input id="Input_Semester" label="Semester Aktif" camunda:inputVariable="semesterAktif">
         <inputExpression id="InputExpr_Semester" typeRef="integer">
           <text>semesterAktif</text>
         </inputExpression>
       </input>
-
-      <input id="Input_IPK" label="IPK Kumulatif" camunda:inputVariable="ipkKumulatif">
-        <inputExpression id="InputExpr_IPK" typeRef="double">
-          <text>ipkKumulatif</text>
-        </inputExpression>
-      </input>
-
-      <input id="Input_MKUlang" label="Jumlah MK Mengulang" camunda:inputVariable="mkMengulang">
-        <inputExpression id="InputExpr_MKUlang" typeRef="integer">
-          <text>mkMengulang</text>
-        </inputExpression>
-      </input>
-
       <output id="Output_Tier" label="Tier Level" name="tier" typeRef="integer" />
-
-      <output id="Output_Tindakan" label="Tindakan" name="tindakanRekomendasi" typeRef="string" />
-
-      <output id="Output_Prioritas" label="Prioritas" name="prioritasEskalasi" typeRef="string" />
-
-      <rule id="Rule_Terminal_14">
-        <description>Mahasiswa semester 14 ke atas: status terminal, eskalasi ke Dekanat</description>
-        <inputEntry id="IE_R1_Sem"><text>&gt;= 14</text></inputEntry>
-        <inputEntry id="IE_R1_IPK"><text>-</text></inputEntry>
-        <inputEntry id="IE_R1_MK"><text>-</text></inputEntry>
-        <outputEntry id="OE_R1_Tier"><text>3</text></outputEntry>
-        <outputEntry id="OE_R1_Tindakan"><text>"Eskalasi ke Dekanat + Notif Orang Tua + Konseling Wajib"</text></outputEntry>
-        <outputEntry id="OE_R1_Prioritas"><text>"KRITIS"</text></outputEntry>
+      <rule id="Rule_Tier3">
+        <inputEntry id="IE_T3">
+          <text>&gt;= 14</text>
+        </inputEntry>
+        <outputEntry id="OE_T3_Tier">
+          <text>3</text>
+        </outputEntry>
       </rule>
-
-      <rule id="Rule_Terminal_13">
-        <description>Semester 13 dengan IPK di bawah 2.5: mendekati batas DO</description>
-        <inputEntry id="IE_R2_Sem"><text>13</text></inputEntry>
-        <inputEntry id="IE_R2_IPK"><text>&lt; 2.5</text></inputEntry>
-        <inputEntry id="IE_R2_MK"><text>-</text></inputEntry>
-        <outputEntry id="OE_R2_Tier"><text>3</text></outputEntry>
-        <outputEntry id="OE_R2_Tindakan"><text>"Eskalasi ke Dekanat + Notif Orang Tua + Rencana Akselerasi"</text></outputEntry>
-        <outputEntry id="OE_R2_Prioritas"><text>"KRITIS"</text></outputEntry>
+      <rule id="Rule_Tier2">
+        <inputEntry id="IE_T2">
+          <text>12, 13</text>
+        </inputEntry>
+        <outputEntry id="OE_T2_Tier">
+          <text>2</text>
+        </outputEntry>
       </rule>
-
-      <rule id="Rule_Critical">
-        <description>Semester 11-13: status kritis, perlu intervensi PA dan Korprodi</description>
-        <inputEntry id="IE_R3_Sem"><text>[11..13]</text></inputEntry>
-        <inputEntry id="IE_R3_IPK"><text>-</text></inputEntry>
-        <inputEntry id="IE_R3_MK"><text>-</text></inputEntry>
-        <outputEntry id="OE_R3_Tier"><text>2</text></outputEntry>
-        <outputEntry id="OE_R3_Tindakan"><text>"Notif ke PA + Korprodi + Jadwalkan Konseling"</text></outputEntry>
-        <outputEntry id="OE_R3_Prioritas"><text>"TINGGI"</text></outputEntry>
+      <rule id="Rule_Tier1">
+        <inputEntry id="IE_T1">
+          <text>9, 10, 11</text>
+        </inputEntry>
+        <outputEntry id="OE_T1_Tier">
+          <text>1</text>
+        </outputEntry>
       </rule>
-
-      <rule id="Rule_Warning_MKUlang">
-        <description>Semester 9-10 dengan 3+ MK mengulang: risiko masa studi panjang</description>
-        <inputEntry id="IE_R4_Sem"><text>[9..10]</text></inputEntry>
-        <inputEntry id="IE_R4_IPK"><text>-</text></inputEntry>
-        <inputEntry id="IE_R4_MK"><text>&gt;= 3</text></inputEntry>
-        <outputEntry id="OE_R4_Tier"><text>1</text></outputEntry>
-        <outputEntry id="OE_R4_Tindakan"><text>"Notif ke PA + Rekomendasi Bimbingan Akademik"</text></outputEntry>
-        <outputEntry id="OE_R4_Prioritas"><text>"SEDANG"</text></outputEntry>
-      </rule>
-
-      <rule id="Rule_Warning">
-        <description>Semester 9-10: warning standar</description>
-        <inputEntry id="IE_R5_Sem"><text>[9..10]</text></inputEntry>
-        <inputEntry id="IE_R5_IPK"><text>-</text></inputEntry>
-        <inputEntry id="IE_R5_MK"><text>-</text></inputEntry>
-        <outputEntry id="OE_R5_Tier"><text>1</text></outputEntry>
-        <outputEntry id="OE_R5_Tindakan"><text>"Notif Reminder ke PA"</text></outputEntry>
-        <outputEntry id="OE_R5_Prioritas"><text>"SEDANG"</text></outputEntry>
-      </rule>
-
       <rule id="Rule_Normal">
-        <description>Semester 1-8: normal, tidak perlu intervensi</description>
-        <inputEntry id="IE_R6_Sem"><text>&lt;= 8</text></inputEntry>
-        <inputEntry id="IE_R6_IPK"><text>-</text></inputEntry>
-        <inputEntry id="IE_R6_MK"><text>-</text></inputEntry>
-        <outputEntry id="OE_R6_Tier"><text>0</text></outputEntry>
-        <outputEntry id="OE_R6_Tindakan"><text>"Tidak ada tindakan — monitoring rutin"</text></outputEntry>
-        <outputEntry id="OE_R6_Prioritas"><text>"RENDAH"</text></outputEntry>
+        <inputEntry id="IE_Normal">
+          <text>-</text>
+        </inputEntry>
+        <outputEntry id="OE_Normal_Tier">
+          <text>0</text>
+        </outputEntry>
       </rule>
-
     </decisionTable>
   </decision>
-
-  <dmndi:DMNDI>
-    <dmndi:DMNDiagram id="DMNDiagram_1">
-      <dmndi:DMNShape id="DMNShape_Decision" dmnElementRef="Decision_TierKlasifikasi">
-        <dc:Bounds height="80" width="180" x="160" y="100" />
-      </dmndi:DMNShape>
-    </dmndi:DMNDiagram>
-  </dmndi:DMNDI>
-
 </definitions>

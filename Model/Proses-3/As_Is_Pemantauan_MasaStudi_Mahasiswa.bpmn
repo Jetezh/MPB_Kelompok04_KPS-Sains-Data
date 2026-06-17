@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="http://fik.prodi.bpm/pemantauan-masa-studi-as-is" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="AsIs_Pemantauan_MasaStudi_Mahasiswa">
+    <bpmn:participant id="Pool_MasaStudi_AsIs" name="Pemantauan Masa Studi Mahasiswa (AS-IS)" processRef="Proc_MasaStudi_AsIs">
+      <bpmn:documentation>Proses pemantauan masa studi mahasiswa pada kondisi AS-IS. Bersifat reaktif dan periodik: data diambil manual dari UNISIS (desktop), direkapitulasi di Excel, dan intervensi dilakukan secara manual oleh Dosen PA. Tidak ada sistem peringatan dini otomatis.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_DataLag">
+      <bpmn:text>Data hanya diperbarui manual di awal semester — tidak ada pemantauan berkelanjutan.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_KontakGagal">
+      <bpmn:text>Banyak nomor tidak aktif sejak registrasi awal. Surat fisik = upaya terakhir yang tidak efektif.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_UKTRisk">
+      <bpmn:text>Tanpa respons mahasiswa → UKT tetap ditagih meski tidak aktif. Risiko finansial dan administratif.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_DataLag" sourceRef="TextAnn_DataLag" targetRef="T_EksporUNISIS" />
+    <bpmn:association id="Assoc_Ann_Kontak" sourceRef="TextAnn_KontakGagal" targetRef="T_CariKontakManual" />
+    <bpmn:association id="Assoc_Ann_UKT" sourceRef="TextAnn_UKTRisk" targetRef="EE_SelesaiTanpaRespons" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_MasaStudi_AsIs" name="Pemantauan Masa Studi - AS-IS" isExecutable="true">
+    <bpmn:laneSet id="LS_MasaStudi_AsIs">
+      <bpmn:lane id="Lane_Mahasiswa_MS" name="Mahasiswa">
+        <bpmn:documentation>Mahasiswa yang sedang dalam masa studi kritis (semester 14-15). Diharapkan merespons dan mengonfirmasi status studinya ketika dihubungi oleh Dosen PA.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_MahasiswaKonfirmasi</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_DosenPA_MS" name="Dosen PA">
+        <bpmn:documentation>Dosen PA menghubungi mahasiswa secara langsung via telepon atau pesan setelah mendapat arahan dari Korprodi melalui rapat koordinasi.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_PAHubungiMahasiswa</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Korprodi" name="Koordinator Program Studi (Korprodi)">
+        <bpmn:documentation>Koordinator Prodi mereview hasil rekapitulasi manual, mengkoordinasikan rapat dengan Dosen PA, dan menetapkan tindak lanjut akademik bagi mahasiswa yang merespons.</bpmn:documentation>
+        <bpmn:flowNodeRef>EE_SelesaiTertangani</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ReviewRekapitulasiManual</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RapatKoordinasiPA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_MahasiswaMerespons</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_TindakLanjutAkademik</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AdminMikmas" name="Admin Prodi (Mikmas)">
+        <bpmn:documentation>Admin Prodi (Mikmas) bertanggung jawab mengekspor data dari UNISIS, membuat rekap Excel, mengidentifikasi mahasiswa kritis, dan mencari kontak alternatif jika diperlukan.</bpmn:documentation>
+        <bpmn:flowNodeRef>SE_AwalSemester</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_SelesaiTanpaRespons</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_EksporUNISIS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RekapExcel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_IdentifikasiSem14</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AdaMahasiswaKritis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_CariKontakManual</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_KontakBerhasil</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimSuratFisik</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_AwalSemester" name="Awal Semester /&#10;Periode KRS Dimulai">
+      <bpmn:documentation>Trigger manual di awal setiap semester saat periode KRS dimulai. Tidak ada jadwal otomatis; proses dimulai atas inisiatif Admin/Korprodi.</bpmn:documentation>
+      <bpmn:outgoing>F_MS_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="EE_SelesaiTertangani" name="Mahasiswa Tertangani&#10;(Intervensi Akademik)">
+      <bpmn:documentation>Proses selesai dengan mahasiswa tertangani — tindak lanjut akademik telah ditetapkan dan dicatat.</bpmn:documentation>
+      <bpmn:incoming>F_MS_12</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EE_SelesaiTanpaRespons" name="Tidak Ada Respons&#10;(Surat Fisik Terkirim)">
+      <bpmn:documentation>Proses berakhir tanpa respons dari mahasiswa. Surat fisik telah dikirim tetapi tidak ada kepastian diterima. Mahasiswa berpotensi tetap menanggung UKT tanpa status jelas.</bpmn:documentation>
+      <bpmn:incoming>F_MS_10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="T_EksporUNISIS" name="Ekspor Data Mahasiswa&#10;dari UNISIS (Desktop)&#10;ke File Excel">
+      <bpmn:documentation>Admin mengekspor data mahasiswa dari sistem UNISIS (desktop) ke file Excel. Proses ini manual dan hanya dapat dilakukan dari komputer yang terinstal UNISIS. Menciptakan data lag antara kondisi aktual dan data yang dianalisis.</bpmn:documentation>
+      <bpmn:incoming>F_MS_01</bpmn:incoming>
+      <bpmn:outgoing>F_MS_02</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Ekspor">
+        <bpmn:targetRef>DataRef_UNISIS_MS</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_RekapExcel" name="Rekap Manual di Excel:&#10;Hitung Semester, SKS,&#10;MK Mengulang">
+      <bpmn:documentation>Admin merekapitulasi data secara manual di Excel: menghitung jumlah semester aktif, total SKS ditempuh vs sisa, dan mata kuliah yang diulang. Proses sangat rentan terhadap human error.</bpmn:documentation>
+      <bpmn:incoming>F_MS_02</bpmn:incoming>
+      <bpmn:outgoing>F_MS_03</bpmn:outgoing>
+      <bpmn:property id="Property_1y6750p" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1ezjgu8">
+        <bpmn:sourceRef>DataRef_UNISIS_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1y6750p</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="DataOut_Rekap">
+        <bpmn:targetRef>DataRef_RekapExcel_MS</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_IdentifikasiSem14" name="Identifikasi Mahasiswa&#10;Semester 14-15&#10;(Masa Kritis)">
+      <bpmn:documentation>Admin mengidentifikasi mahasiswa yang telah memasuki semester 14-15 (batas akhir studi 8 tahun) berdasarkan hasil rekap Excel. Ini merupakan satu-satunya mekanisme deteksi risiko yang ada.</bpmn:documentation>
+      <bpmn:incoming>F_MS_03</bpmn:incoming>
+      <bpmn:outgoing>F_MS_04</bpmn:outgoing>
+      <bpmn:property id="Property_1dvihtw" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_09zgzgf">
+        <bpmn:sourceRef>DataRef_RekapExcel_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1dvihtw</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_AdaMahasiswaKritis" name="Ada Mahasiswa&#10;Masa Kritis?">
+      <bpmn:documentation>Keputusan: apakah ada mahasiswa yang masuk kategori kritis (semester 14-15)? Jika tidak ada, proses selesai. Jika ada, lanjut ke tahap intervensi.</bpmn:documentation>
+      <bpmn:incoming>F_MS_04</bpmn:incoming>
+      <bpmn:outgoing>F_MS_05_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_MS_05_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_ReviewRekapitulasiManual" name="Korprodi Review&#10;Rekapitulasi Manual&#10;dari Mikmas">
+      <bpmn:documentation>Korprodi mereview hasil rekapitulasi Excel dari Admin untuk memahami kondisi mahasiswa kritis sebelum mengambil keputusan intervensi.</bpmn:documentation>
+      <bpmn:incoming>F_MS_05_ya</bpmn:incoming>
+      <bpmn:outgoing>F_MS_06</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:manualTask id="T_RapatKoordinasiPA" name="Rapat Koordinasi&#10;dengan Dosen PA&#10;(Manual/Tatap Muka)">
+      <bpmn:documentation>Rapat koordinasi manual antara Korprodi dan Dosen PA untuk membahas mahasiswa kritis dan menetapkan strategi penghubungan. Rapat ini memerlukan penjadwalan dan tidak dapat dilakukan secara ad-hoc.</bpmn:documentation>
+      <bpmn:incoming>F_MS_06</bpmn:incoming>
+      <bpmn:outgoing>F_MS_07</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:manualTask id="T_PAHubungiMahasiswa" name="Dosen PA Hubungi&#10;Mahasiswa (Telpon/&#10;Pesan Langsung)">
+      <bpmn:documentation>Dosen PA menghubungi mahasiswa kritis via telepon atau pesan langsung berdasarkan data kontak yang tersimpan di sistem. Masalah utama: banyak nomor sudah tidak aktif karena tidak diperbarui sejak registrasi awal.</bpmn:documentation>
+      <bpmn:incoming>F_MS_07</bpmn:incoming>
+      <bpmn:outgoing>F_MS_08</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:userTask id="T_CariKontakManual" name="Mikmas Cari Kontak&#10;Alternatif (Orang Tua)&#10;dari Data Registrasi Awal">
+      <bpmn:documentation>Mikmas mencari kontak alternatif (orang tua/wali) dari data registrasi awal mahasiswa. Data ini sering sudah kadaluarsa dan sulit ditemukan karena tersebar di berbagai dokumen.</bpmn:documentation>
+      <bpmn:incoming>F_MS_08</bpmn:incoming>
+      <bpmn:outgoing>F_MS_09</bpmn:outgoing>
+      <bpmn:property id="Property_0yofuci" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0ixqb7u">
+        <bpmn:sourceRef>DataRef_Kontak_MS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0yofuci</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_KontakBerhasil" name="Kontak&#10;Berhasil?">
+      <bpmn:documentation>Keputusan: apakah Admin berhasil menemukan kontak aktif mahasiswa atau orang tua? Jika tidak berhasil, satu-satunya opsi adalah mengirim surat fisik ke alamat terakhir.</bpmn:documentation>
+      <bpmn:incoming>F_MS_09</bpmn:incoming>
+      <bpmn:outgoing>F_MS_10_tidak</bpmn:outgoing>
+      <bpmn:outgoing>F_MS_11_ya</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:manualTask id="T_KirimSuratFisik" name="Kirim Surat Fisik&#10;ke Alamat Terakhir&#10;Mahasiswa">
+      <bpmn:documentation>Mengirim surat fisik ke alamat terakhir mahasiswa sebagai upaya terakhir. Proses sangat lambat dan sering tidak efektif karena mahasiswa sudah tidak tinggal di alamat tersebut.</bpmn:documentation>
+      <bpmn:incoming>F_MS_10_tidak</bpmn:incoming>
+      <bpmn:outgoing>F_MS_10</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:userTask id="T_MahasiswaKonfirmasi" name="Mahasiswa Konfirmasi&#10;Status Studi&#10;(Aktif/Cuti/Undur Diri)">
+      <bpmn:documentation>Mahasiswa mengonfirmasi status studinya (aktif, cuti, atau berencana mengundurkan diri) kepada Dosen PA. Konfirmasi dilakukan secara verbal atau via pesan.</bpmn:documentation>
+      <bpmn:incoming>F_MS_11_ya</bpmn:incoming>
+      <bpmn:outgoing>F_MS_11b</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_MahasiswaMerespons" name="Mahasiswa&#10;Merespons?">
+      <bpmn:documentation>Keputusan: apakah mahasiswa merespons? Jika ya, Korprodi menetapkan tindak lanjut akademik. Jika tidak, proses berakhir tanpa resolusi.</bpmn:documentation>
+      <bpmn:incoming>F_MS_11b</bpmn:incoming>
+      <bpmn:outgoing>F_MS_12_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_MS_05_tidak_end</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_TindakLanjutAkademik" name="Korprodi Tetapkan&#10;Tindak Lanjut Akademik&#10;(Cuti / Proses DO)">
+      <bpmn:documentation>Korprodi menetapkan tindak lanjut berdasarkan konfirmasi mahasiswa: pemrosesan cuti akademik, perpanjangan studi, atau proses Drop Out (DO) sesuai kebijakan.</bpmn:documentation>
+      <bpmn:incoming>F_MS_12_ya</bpmn:incoming>
+      <bpmn:outgoing>F_MS_12</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:dataObjectReference id="DataRef_Kontak_MS" name="Data Kontak Mahasiswa / Wali" dataObjectRef="DataObject_Kontak_MS">
+      <bpmn:documentation>Data kontak dari registrasi awal. Sering tidak diperbarui — banyak nomor tidak aktif, menyebabkan kegagalan komunikasi dengan mahasiswa kritis.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_Kontak_MS" />
+    <bpmn:sequenceFlow id="F_MS_01" sourceRef="SE_AwalSemester" targetRef="T_EksporUNISIS" />
+    <bpmn:sequenceFlow id="F_MS_05_tidak" name="Tidak" sourceRef="GW_AdaMahasiswaKritis" targetRef="EE_SelesaiTertangani" />
+    <bpmn:sequenceFlow id="F_MS_12" sourceRef="T_TindakLanjutAkademik" targetRef="EE_SelesaiTertangani" />
+    <bpmn:sequenceFlow id="F_MS_10" sourceRef="T_KirimSuratFisik" targetRef="EE_SelesaiTanpaRespons" />
+    <bpmn:sequenceFlow id="F_MS_05_tidak_end" name="Tidak Merespons" sourceRef="GW_MahasiswaMerespons" targetRef="EE_SelesaiTanpaRespons" />
+    <bpmn:sequenceFlow id="F_MS_02" sourceRef="T_EksporUNISIS" targetRef="T_RekapExcel" />
+    <bpmn:sequenceFlow id="F_MS_03" sourceRef="T_RekapExcel" targetRef="T_IdentifikasiSem14" />
+    <bpmn:sequenceFlow id="F_MS_04" sourceRef="T_IdentifikasiSem14" targetRef="GW_AdaMahasiswaKritis" />
+    <bpmn:sequenceFlow id="F_MS_05_ya" name="Ya" sourceRef="GW_AdaMahasiswaKritis" targetRef="T_ReviewRekapitulasiManual" />
+    <bpmn:sequenceFlow id="F_MS_06" sourceRef="T_ReviewRekapitulasiManual" targetRef="T_RapatKoordinasiPA" />
+    <bpmn:sequenceFlow id="F_MS_07" sourceRef="T_RapatKoordinasiPA" targetRef="T_PAHubungiMahasiswa" />
+    <bpmn:sequenceFlow id="F_MS_08" sourceRef="T_PAHubungiMahasiswa" targetRef="T_CariKontakManual" />
+    <bpmn:sequenceFlow id="F_MS_09" sourceRef="T_CariKontakManual" targetRef="GW_KontakBerhasil" />
+    <bpmn:sequenceFlow id="F_MS_10_tidak" name="Tidak Berhasil" sourceRef="GW_KontakBerhasil" targetRef="T_KirimSuratFisik" />
+    <bpmn:sequenceFlow id="F_MS_11_ya" name="Berhasil" sourceRef="GW_KontakBerhasil" targetRef="T_MahasiswaKonfirmasi" />
+    <bpmn:sequenceFlow id="F_MS_11b" sourceRef="T_MahasiswaKonfirmasi" targetRef="GW_MahasiswaMerespons" />
+    <bpmn:sequenceFlow id="F_MS_12_ya" name="Merespons" sourceRef="GW_MahasiswaMerespons" targetRef="T_TindakLanjutAkademik" />
+    <bpmn:dataObjectReference id="DataRef_UNISIS_MS" name="Data Mahasiswa (UNISIS Desktop)" dataObjectRef="DataObject_UNISIS_MS">
+      <bpmn:documentation>Data akademik dari UNISIS: NIM, semester aktif, SKS, UKT, kontak. Hanya bisa diakses dari komputer yang terinstal UNISIS — menciptakan data lag.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_UNISIS_MS" />
+    <bpmn:dataObjectReference id="DataRef_RekapExcel_MS" name="Rekap Data Studi (Excel Manual)" dataObjectRef="DataObject_RekapExcel_MS">
+      <bpmn:documentation>File Excel hasil rekap Admin: semester aktif, SKS, MK mengulang. Satu-satunya rujukan analisis. Rentan human error dan tidak tersedia real-time.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_RekapExcel_MS" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_MasaStudi_AsIs">
+    <bpmndi:BPMNPlane id="Plane_MasaStudi_AsIs" bpmnElement="AsIs_Pemantauan_MasaStudi_Mahasiswa">
+      <bpmndi:BPMNShape id="S_Pool_MS_AsIs" bpmnElement="Pool_MasaStudi_AsIs" isHorizontal="true">
+        <dc:Bounds x="140" y="150" width="1560" height="740" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_AdminMikmas" bpmnElement="Lane_AdminMikmas" isHorizontal="true">
+        <dc:Bounds x="170" y="150" width="1530" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Korprodi" bpmnElement="Lane_Korprodi" isHorizontal="true">
+        <dc:Bounds x="170" y="335" width="1530" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_DosenPA_MS" bpmnElement="Lane_DosenPA_MS" isHorizontal="true">
+        <dc:Bounds x="170" y="520" width="1530" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Mahasiswa_MS" bpmnElement="Lane_Mahasiswa_MS" isHorizontal="true">
+        <dc:Bounds x="170" y="705" width="1530" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_SE_AwalSemester" bpmnElement="SE_AwalSemester">
+        <dc:Bounds x="222" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="201" y="265" width="80" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_Tertangani" bpmnElement="EE_SelesaiTertangani">
+        <dc:Bounds x="1562" y="407" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1553" y="450" width="56" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_SelesaiTanpaRespons" bpmnElement="EE_SelesaiTanpaRespons">
+        <dc:Bounds x="1562" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1601" y="213.5" width="57" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_EksporUNISIS" bpmnElement="T_EksporUNISIS">
+        <dc:Bounds x="310" y="200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_RekapExcel" bpmnElement="T_RekapExcel">
+        <dc:Bounds x="480" y="200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_IdentifikasiSem14" bpmnElement="T_IdentifikasiSem14">
+        <dc:Bounds x="650" y="200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_AdaMahasiswaKritis" bpmnElement="GW_AdaMahasiswaKritis" isMarkerVisible="true">
+        <dc:Bounds x="825" y="215" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="885" y="226" width="78" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_ReviewRekap" bpmnElement="T_ReviewRekapitulasiManual">
+        <dc:Bounds x="900" y="385" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_RapatKoord" bpmnElement="T_RapatKoordinasiPA">
+        <dc:Bounds x="1060" y="385" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_PAHubungi" bpmnElement="T_PAHubungiMahasiswa">
+        <dc:Bounds x="900" y="570" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_CariKontakManual" bpmnElement="T_CariKontakManual">
+        <dc:Bounds x="1060" y="200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_KontakBerhasil" bpmnElement="GW_KontakBerhasil" isMarkerVisible="true">
+        <dc:Bounds x="1235" y="215" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1237" y="186.5" width="46" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_KirimSuratFisik" bpmnElement="T_KirimSuratFisik">
+        <dc:Bounds x="1370" y="200" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_MahasiswaKonfirmasi" bpmnElement="T_MahasiswaKonfirmasi">
+        <dc:Bounds x="1060" y="755" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_MahasiswaMerespons" bpmnElement="GW_MahasiswaMerespons" isMarkerVisible="true">
+        <dc:Bounds x="1235" y="400" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1229" y="362.5" width="61" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_TindakLanjut" bpmnElement="T_TindakLanjutAkademik">
+        <dc:Bounds x="1370" y="385" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_Kontak_MS" bpmnElement="DataRef_Kontak_MS">
+        <dc:Bounds x="900" y="775" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="875" y="831" width="86" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_UNISIS_MS" bpmnElement="DataRef_UNISIS_MS">
+        <dc:Bounds x="352" y="770" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="326" y="826" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_RekapExcel_MS" bpmnElement="DataRef_RekapExcel_MS">
+        <dc:Bounds x="522" y="770" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="497" y="826" width="87" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_F_MS_01" bpmnElement="F_MS_01">
+        <di:waypoint x="258" y="240" />
+        <di:waypoint x="310" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_05_tidak" bpmnElement="F_MS_05_tidak">
+        <di:waypoint x="850" y="215" />
+        <di:waypoint x="850" y="180" />
+        <di:waypoint x="1670" y="180" />
+        <di:waypoint x="1670" y="370" />
+        <di:waypoint x="1580" y="370" />
+        <di:waypoint x="1580" y="407" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="857" y="160" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_12" bpmnElement="F_MS_12">
+        <di:waypoint x="1490" y="425" />
+        <di:waypoint x="1562" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_10" bpmnElement="F_MS_10">
+        <di:waypoint x="1490" y="240" />
+        <di:waypoint x="1562" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_05_tidak_end" bpmnElement="F_MS_05_tidak_end">
+        <di:waypoint x="1235" y="425" />
+        <di:waypoint x="1220" y="425" />
+        <di:waypoint x="1220" y="310" />
+        <di:waypoint x="1580" y="310" />
+        <di:waypoint x="1580" y="258" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1247" y="313" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_02" bpmnElement="F_MS_02">
+        <di:waypoint x="430" y="240" />
+        <di:waypoint x="480" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_03" bpmnElement="F_MS_03">
+        <di:waypoint x="600" y="240" />
+        <di:waypoint x="650" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_04" bpmnElement="F_MS_04">
+        <di:waypoint x="770" y="240" />
+        <di:waypoint x="825" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_05_ya" bpmnElement="F_MS_05_ya">
+        <di:waypoint x="850" y="265" />
+        <di:waypoint x="850" y="425" />
+        <di:waypoint x="900" y="425" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="859" y="283" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_06" bpmnElement="F_MS_06">
+        <di:waypoint x="1020" y="425" />
+        <di:waypoint x="1060" y="425" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_07" bpmnElement="F_MS_07">
+        <di:waypoint x="960" y="465" />
+        <di:waypoint x="960" y="570" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="965" y="420" width="0" height="0" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_08" bpmnElement="F_MS_08">
+        <di:waypoint x="1020" y="610" />
+        <di:waypoint x="1040" y="610" />
+        <di:waypoint x="1040" y="240" />
+        <di:waypoint x="1060" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_09" bpmnElement="F_MS_09">
+        <di:waypoint x="1180" y="240" />
+        <di:waypoint x="1235" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_10_tidak" bpmnElement="F_MS_10_tidak">
+        <di:waypoint x="1285" y="240" />
+        <di:waypoint x="1370" y="240" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1293" y="220" width="70" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_11_ya" bpmnElement="F_MS_11_ya">
+        <di:waypoint x="1260" y="265" />
+        <di:waypoint x="1260" y="290" />
+        <di:waypoint x="1200" y="290" />
+        <di:waypoint x="1200" y="780" />
+        <di:waypoint x="1180" y="775" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1210" y="271" width="40" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_11b" bpmnElement="F_MS_11b">
+        <di:waypoint x="1180" y="795" />
+        <di:waypoint x="1260" y="795" />
+        <di:waypoint x="1260" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_F_MS_12_ya" bpmnElement="F_MS_12_ya">
+        <di:waypoint x="1285" y="425" />
+        <di:waypoint x="1370" y="425" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1295" y="405" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_DataLag" bpmnElement="TextAnn_DataLag">
+        <dc:Bounds x="210" y="80" width="240" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_KontakGagal" bpmnElement="TextAnn_KontakGagal">
+        <dc:Bounds x="890" y="80" width="260" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_UKTRisk" bpmnElement="TextAnn_UKTRisk">
+        <dc:Bounds x="1280" y="80" width="280" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Ekspor" bpmnElement="DataOut_Ekspor">
+        <di:waypoint x="370" y="280" />
+        <di:waypoint x="370" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1ezjgu8_di" bpmnElement="DataInputAssociation_1ezjgu8">
+        <di:waypoint x="388" y="795" />
+        <di:waypoint x="450" y="795" />
+        <di:waypoint x="450" y="260" />
+        <di:waypoint x="480" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Rekap" bpmnElement="DataOut_Rekap">
+        <di:waypoint x="540" y="280" />
+        <di:waypoint x="540" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_09zgzgf_di" bpmnElement="DataInputAssociation_09zgzgf">
+        <di:waypoint x="558" y="795" />
+        <di:waypoint x="670" y="795" />
+        <di:waypoint x="670" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0ixqb7u_di" bpmnElement="DataInputAssociation_0ixqb7u">
+        <di:waypoint x="900" y="800" />
+        <di:waypoint x="870" y="800" />
+        <di:waypoint x="870" y="320" />
+        <di:waypoint x="1120" y="320" />
+        <di:waypoint x="1120" y="280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_DataLag" bpmnElement="Assoc_Ann_DataLag">
+        <di:waypoint x="337" y="130" />
+        <di:waypoint x="358" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Kontak" bpmnElement="Assoc_Ann_Kontak">
+        <di:waypoint x="1039" y="130" />
+        <di:waypoint x="1090" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_UKT" bpmnElement="Assoc_Ann_UKT">
+        <di:waypoint x="1450" y="130" />
+        <di:waypoint x="1566" y="229" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
