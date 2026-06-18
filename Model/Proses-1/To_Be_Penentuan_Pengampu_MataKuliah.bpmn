@@ -1,0 +1,833 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:ns1="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:open-bpmn="http://open-bpmn.org/XMLSchema" targetNamespace="http://fik.prodi.bpm/penentuan-pengampu-to-be" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="Penentuan_Pengampu_MataKuliah">
+    <bpmn:participant id="Pool_Pengampu_ToBe" name="Penentuan Dosen Pengampu Mata Kuliah (TO-BE)" processRef="Proc_Pengampu_ToBe">
+      <bpmn:documentation>Proses penentuan pengampu MK pada kondisi TO-BE. Sistem otomatis memuat data dosen terkini, menghasilkan saran plotting berbasis kompetensi, memvalidasi beban SKS dan konflik jadwal secara otomatis, dan mengelola konfirmasi dosen dengan SLA timer.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_AutoSuggest">
+      <bpmn:documentation id="documentation_JnaEkQ" />
+      <bpmn:text>Sistem menyarankan plotting berbasis keselarasan kompetensi dari SIMPEL — Korprodi tinggal review dan approve.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_SLA_Dosen">
+      <bpmn:documentation id="documentation_9SenDA" />
+      <bpmn:text>Timer 2 hari: jika dosen tidak konfirmasi kesediaan, eskalasi otomatis ke Korprodi.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_AutoSuggest" sourceRef="TextAnn_AutoSuggest" targetRef="T_AutoPlotting" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Pengampu_ToBe" name="Penentuan Dosen Pengampu MK - TO-BE" processType="Private" isExecutable="true" ns1:historyTimeToLive="30">
+    <bpmn:laneSet id="LS_Pengampu_ToBe">
+      <bpmn:lane id="Lane_Wadek_TB_PG" name="Wakil Dekan 1 (Wadek 1)">
+        <bpmn:documentation>Wadek 1 menerima draft melalui sistem dan memberikan approval digital. Seluruh histori review tercatat sebagai audit trail.</bpmn:documentation>
+        <bpmn:flowNodeRef>GW_WadekApproveGW</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_WadekApproveDigital</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Dosen_TB_PG" name="Dosen">
+        <bpmn:documentation>Dosen menerima notifikasi digital dan mengkonfirmasi kesediaan melalui sistem dalam SLA 2 hari. Proses formal dan tercatat.</bpmn:documentation>
+        <bpmn:flowNodeRef>GW_DosenSetuju</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_DosenKonfirmDigital</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>BE_TimerDosenSLA</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Korprodi_TB_PG" name="Koordinator Program Studi (Korprodi)">
+        <bpmn:documentation>Korprodi berfokus pada input daftar MK dan review/approval draft yang sudah dihasilkan sistem. Tidak perlu melakukan plotting manual dari nol.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_KorprodiSetMK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiRevisi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_KorprodiApprove</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_PlottingDisahkan_ToBe</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiHandleEskalasi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_RetryCheck</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_GagalAssign</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiReviewDraft</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sistem_PG" name="SISTEM (Automated)">
+        <bpmn:documentation>Lane sistem yang menjalankan loading data otomatis, auto-suggest plotting, validasi beban, generasi draft digital, pengiriman notifikasi kesediaan, dan sinkronisasi akhir ke SIAKAD.</bpmn:documentation>
+        <bpmn:flowNodeRef>SE_SistemMulai</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_LoadDataDosen</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoPlotting</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_FlagViolation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_GenerateDraftDigital</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimNotifKesediaan</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AdaViolation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ValidasiBebanOtomatis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoUpdateSIAKAD</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_SistemMulai" name="Sinkronisasi Data&#10;Dosen dan MK Dimulai" ns1:formRef="form_start_pengampu" ns1:formRefBinding="latest">
+      <bpmn:documentation>Timer terjadwal memicu proses loading data dosen otomatis di awal periode persiapan semester. Tidak perlu tindakan manual untuk memulai.</bpmn:documentation>
+      <bpmn:outgoing>F_TB_PG_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="T_LoadDataDosen" name="Load Data Dosen&#10;Otomatis: Peminatan,&#10;Sertifikasi, Beban SKS">
+      <bpmn:documentation>Sistem memuat data dosen secara otomatis dari database terintegrasi: peminatan, sertifikasi aktif, beban SKS semester berjalan, dan rekam jejak pengajaran dari SIMPEL.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">// Inisialisasi variabel simulasi untuk plotting mata kuliah
+// Variabel matakuliah, kodeMK, dosenDiusulkan, adaViolation
+// diambil dari form Start Event — TIDAK di-hardcode di sini.
+
+execution.setVariable('retryAssignDosen', 0); // Counter retry assign dosen
+
+var mk = execution.getVariable('matakuliah');
+var kode = execution.getVariable('kodeMK');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 1 -&gt; Load Repositori Dosen",
+    "description": "Sistem berhasil memuat data kompetensi, sertifikasi, dan beban SKS dosen dari database terintegrasi.",
+    "color": 3447003,
+    "fields": [
+      { "name": "Target Mata Kuliah", "value": mk + " (" + kode + ")", "inline": false },
+      { "name": "Status Jaringan", "value": "✅ Terhubung ke Middleware SIMPEL", "inline": true }
+    ],
+    "footer": { "text": "Kelompok 4 - Master Data Loader" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_01</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_02</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_LoadDosen">
+        <bpmn:targetRef>DataRef_DataDosenDB</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_KorprodiSetMK" name="Korprodi Input Daftar&#10;MK yang Ditawarkan&#10;di Sistem" ns1:formRef="form_korprodi_input_mk" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi menginput daftar mata kuliah yang akan ditawarkan melalui antarmuka dashboard. Ini satu-satunya input manual yang diperlukan dari Korprodi di tahap awal.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_02</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_03</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="T_AutoPlotting" name="Auto-Suggest Plotting&#10;Berbasis Kompetensi&#10;dan Ketersediaan">
+      <bpmn:documentation>Sistem menghasilkan saran plotting otomatis berdasarkan keselarasan kompetensi dosen (dari data SIMPEL) dengan kebutuhan mata kuliah, dengan mempertimbangkan beban SKS dan ketersediaan jadwal.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 1 -&gt; Algoritma Rekomendasi Plotting",
+    "description": "Sistem selesai menjalankan kalkulasi pencocokan ketersediaan waktu mengajar dosen.",
+    "color": 3447003,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Rekomendasi Utama", "value": dosen, "inline": true }
+    ],
+    "footer": { "text": "Kelompok 4 - AI Suggestion Engine Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_03</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_04</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_KorprodiRevisi" name="Korprodi Revisi&#10;Plotting Manual&#10;di Dashboard" ns1:formRef="form_korprodi_revisi" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation id="documentation_EqYh2Q" />
+      <bpmn:incoming>F_TB_PG_10_tidak</bpmn:incoming>
+      <bpmn:incoming>F_TB_PG_16_tidak</bpmn:incoming>
+      <bpmn:outgoing>Flow_1ois8iv</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_KorprodiApprove" name="Korprodi&#10;Approve?">
+      <bpmn:documentation>Keputusan Korprodi: apakah draft plotting dapat diterima untuk dilanjutkan ke tahap konfirmasi dosen? Jika tidak, Korprodi melakukan revisi manual.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_09</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_10_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_PG_10_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="GW_WadekApproveGW" name="Wadek&#10;Approve?">
+      <bpmn:documentation>Keputusan Wadek: approve atau minta revisi? Jika revisi, Korprodi menyesuaikan draft dan proses dimulai ulang dari validasi.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_15</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_16_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_PG_16_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:dataObjectReference id="DataRef_DataDosenDB" name="Data Dosen (Database Terintegrasi)" dataObjectRef="DataObject_DataDosenDB">
+      <bpmn:documentation>Database dosen terpadu: peminatan, sertifikasi aktif, rekam jejak dari SIMPEL, beban SKS real-time. Diperbarui otomatis dari berbagai sumber sistem.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DataDosenDB">
+      <bpmn:documentation id="documentation_PsfvPw" />
+    </bpmn:dataObject>
+    <bpmn:serviceTask id="T_FlagViolation" name="Flag Violation&#10;dan Notifikasi&#10;Korprodi">
+      <bpmn:documentation>Sistem menandai pelanggaran yang ditemukan dan mengirim notifikasi detail ke Korprodi: dosen mana yang overload, mata kuliah mana yang berkonflik, dan saran penyelesaian.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 1 -&gt; Peringatan Bentrok Jadwal!",
+    "description": " Sistem mendeteksi adanya pelanggaran aturan distribusi mengajar. Tugas revisi dikirim ke Korprodi.",
+    "color": 16742144,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen Terkendala", "value": dosen, "inline": true },
+      { "name": "Antrean Meja Kerja", "value": "Ditugaskan ke grup `g4kps` untuk revisi manual", "inline": false }
+    ],
+    "footer": { "text": "Sistem Deteksi Pelanggaran Operasional" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_06_ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_07</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_GenerateDraftDigital" name="Generate Draft Plotting&#10;Digital (Auto-Report)">
+      <bpmn:documentation>Sistem menghasilkan draft plotting digital lengkap dalam format yang dapat langsung di-review oleh Korprodi di dashboard, termasuk visualisasi distribusi beban per dosen.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [LOG SISTEM OTOMATIS] ⏱️ PROSES 1 -&gt; Penyusunan Dokumen Draft",
+    "description": "Data plotting dinyatakan bersih dari konflik. Sistem mengunci dokumen draft laporan digital.",
+    "color": 3447003,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen Pengampu", "value": dosen, "inline": true }
+    ],
+    "footer": { "text": "Report Generator Component: Draft Locked" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_06_tidak</bpmn:incoming>
+      <bpmn:incoming>F_TB_PG_07</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_08</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_DraftDigital">
+        <bpmn:targetRef>DataRef_DraftDigital</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_WadekApproveDigital" name="Wadek 1 Review&#10;dan Approve Plotting&#10;di Sistem" ns1:formRef="form_wadek_approve" ns1:formRefBinding="latest" ns1:candidateGroups="Pimpinan">
+      <bpmn:documentation>Wadek 1 menerima draft plotting melalui sistem dan memberikan approval digital dengan tanda tangan digital. Seluruh proses review tercatat.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_14_ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_15</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="T_KirimNotifKesediaan" name="Kirim Notifikasi&#10;Kesediaan ke Semua&#10;Dosen Terkait">
+      <bpmn:documentation>Sistem mengirim notifikasi kesediaan ke semua dosen yang tercantum dalam draft plotting sekaligus, beserta detail mata kuliah, jadwal, dan batas waktu konfirmasi (SLA 2 hari).</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 1 -&gt; Broadcast Lembar Kesediaan",
+    "description": "Draft telah disetujui Korprodi. Surat konfirmasi kesediaan mengajar dikirim ke akun dosen terkait.",
+    "color": 3447003,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen Penerima", "value": dosen, "inline": true },
+      { "name": "Status SLA", "value": "⏳ Menunggu Respon Dosen (Maksimal 2 Hari)", "inline": false }
+    ],
+    "footer": { "text": "Notification Dispatcher Service" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_10_ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_11</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EE_PlottingDisahkan_ToBe" name="Plotting Disahkan&#10;dan Tersinkron&#10;ke Semua Sistem">
+      <bpmn:documentation>Proses selesai. Plotting pengampu MK disahkan secara digital, tersinkron ke SIAKAD, dan semua pihak menerima konfirmasi otomatis.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_end</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:exclusiveGateway id="GW_DosenSetuju" name="Semua Dosen&#10;Setuju?">
+      <bpmn:documentation>Keputusan: apakah semua dosen menyatakan setuju? Jika ada yang tidak setuju, Korprodi perlu menangani eskalasi penugasan ulang.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_13</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_14_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_PG_14_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:sequenceFlow id="F_TB_PG_01" sourceRef="SE_SistemMulai" targetRef="T_LoadDataDosen">
+      <bpmn:documentation id="documentation_QpnCDQ" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_02" sourceRef="T_LoadDataDosen" targetRef="T_KorprodiSetMK">
+      <bpmn:documentation id="documentation_ioosLA" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_03" sourceRef="T_KorprodiSetMK" targetRef="T_AutoPlotting">
+      <bpmn:documentation id="documentation_NcX0Vw" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_04" sourceRef="T_AutoPlotting" targetRef="T_ValidasiBebanOtomatis">
+      <bpmn:documentation id="documentation_DEw1fg" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_05" sourceRef="T_ValidasiBebanOtomatis" targetRef="GW_AdaViolation">
+      <bpmn:documentation id="documentation_68oE5A" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_10_tidak" name="Tidak" sourceRef="GW_KorprodiApprove" targetRef="T_KorprodiRevisi">
+      <bpmn:documentation id="documentation_WUHZPw" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isKorprodiApprove == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_16_tidak" name="Revisi" sourceRef="GW_WadekApproveGW" targetRef="T_KorprodiRevisi">
+      <bpmn:documentation id="documentation_426HNg" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isWadekApprove == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_08" sourceRef="T_GenerateDraftDigital" targetRef="T_KorprodiReviewDraft">
+      <bpmn:documentation id="documentation_Fq5klQ" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_09" sourceRef="T_KorprodiReviewDraft" targetRef="GW_KorprodiApprove">
+      <bpmn:documentation id="documentation_aZ9f5w" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_10_ya" name="Ya" sourceRef="GW_KorprodiApprove" targetRef="T_KirimNotifKesediaan">
+      <bpmn:documentation id="documentation_SnOwQQ" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isKorprodiApprove == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_11" sourceRef="T_KirimNotifKesediaan" targetRef="T_DosenKonfirmDigital">
+      <bpmn:documentation id="documentation_TmH6TA" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_eskalasi" sourceRef="BE_TimerDosenSLA" targetRef="T_KorprodiHandleEskalasi">
+      <bpmn:documentation id="documentation_TdeKww" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_13" sourceRef="T_DosenKonfirmDigital" targetRef="GW_DosenSetuju">
+      <bpmn:documentation id="documentation_ghyzIA" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_15" sourceRef="T_WadekApproveDigital" targetRef="GW_WadekApproveGW">
+      <bpmn:documentation id="documentation_wfgdjQ" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_16_ya" name="Approve" sourceRef="GW_WadekApproveGW" targetRef="T_AutoUpdateSIAKAD">
+      <bpmn:documentation id="documentation_lXZlPw" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isWadekApprove == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_06_ya" name="Ya" sourceRef="GW_AdaViolation" targetRef="T_FlagViolation">
+      <bpmn:documentation id="documentation_WYyrvA" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adaViolation == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_07" sourceRef="T_FlagViolation" targetRef="T_GenerateDraftDigital">
+      <bpmn:documentation id="documentation_H65TGQ" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_06_tidak" name="Tidak" sourceRef="GW_AdaViolation" targetRef="T_GenerateDraftDigital">
+      <bpmn:documentation id="documentation_rZkEtQ" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adaViolation == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_14_ya" name="Ya" sourceRef="GW_DosenSetuju" targetRef="T_WadekApproveDigital">
+      <bpmn:documentation id="documentation_uVYWSg" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isDosenSetuju == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_end" sourceRef="T_AutoUpdateSIAKAD" targetRef="EE_PlottingDisahkan_ToBe">
+      <bpmn:documentation id="documentation_IXP01Q" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_PG_14_tidak" name="Tidak" sourceRef="GW_DosenSetuju" targetRef="T_KorprodiHandleEskalasi">
+      <bpmn:documentation id="documentation_taehUg" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isDosenSetuju == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:exclusiveGateway id="GW_AdaViolation" name="Ada Violation&#10;/ Konflik?">
+      <bpmn:documentation>Keputusan sistem: apakah ada pelanggaran aturan (overload SKS atau konflik jadwal)? Jika ya, sistem mem-flag dan mengirim notifikasi ke Korprodi untuk revisi manual.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_05</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_06_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_PG_06_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="T_ValidasiBebanOtomatis" name="Validasi Otomatis:&#10;Beban SKS, Konflik&#10;Jadwal (Senin blokir)">
+      <bpmn:documentation>Sistem memvalidasi secara otomatis: (1) beban SKS tidak melebihi 15-16 per dosen, (2) jumlah MK tidak melebihi 4-5, (3) tidak ada konflik jadwal termasuk blokir hari Senin untuk rapat.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+var violation = execution.getVariable('adaViolation');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 1 -&gt; Validasi Beban &amp; Jadwal",
+    "description": "Sistem selesai memvalidasi beban SKS, jumlah MK, dan konflik jadwal (termasuk blokir Senin).",
+    "color": violation ? 16742144 : 3447003,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen", "value": dosen, "inline": true },
+      { "name": "Violation Detected?", "value": violation ? "⚠️ YA — Ada pelanggaran" : "✅ TIDAK — Semua aman", "inline": false }
+    ],
+    "footer": { "text": "Kelompok 4 - Validation Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_04</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_05</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_AutoUpdateSIAKAD" name="Auto-Sinkronisasi&#10;ke SIAKAD + Notif&#10;Semua Pihak">
+      <bpmn:documentation>Sistem secara otomatis mensinkronisasi data plotting yang telah disahkan ke SIAKAD dan mengirim notifikasi konfirmasi ke semua dosen yang ditugaskan.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('matakuliah');
+var dosen = execution.getVariable('dosenDiusulkan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 1 -&gt; Sinkronisasi SIAKAD Berhasil",
+    "description": "Plotting dosen pengampu telah disahkan oleh Wadek 1 dan sukses dipindahkan ke pangkalan data SIAKAD Kampus.",
+    "color": 3066993,
+    "fields": [
+      { "name": "Mata Kuliah Resmi", "value": mk, "inline": true },
+      { "name": "Dosen Pengampu Sah", "value": dosen, "inline": true },
+      { "name": "Status Akhir", "value": "✅ CLOSED &amp; PUBLISHED", "inline": false }
+    ],
+    "footer": { "text": "End-to-End Core Sync Complete | Tenant 4" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_16_ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_end</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1ois8iv" sourceRef="T_KorprodiRevisi" targetRef="T_KorprodiReviewDraft">
+      <bpmn:documentation id="documentation_CJQp0A" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_05i1bnu" sourceRef="T_KorprodiHandleEskalasi" targetRef="GW_RetryCheck">
+      <bpmn:documentation id="documentation_K2n4Dg" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RetryYa" name="Ya (&#60; 3x)" sourceRef="GW_RetryCheck" targetRef="T_DosenKonfirmDigital">
+      <bpmn:documentation id="documentation_84bcCg" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retryAssignDosen &lt; 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_RetryTidak" name="Gagal (&#62;= 3x)" sourceRef="GW_RetryCheck" targetRef="EE_GagalAssign">
+      <bpmn:documentation id="documentation_lp6T5g" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${retryAssignDosen &gt;= 3}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:userTask id="T_KorprodiHandleEskalasi" name="Korprodi Assign&#10;Dosen Pengganti&#10;secara Manual" ns1:formRef="form_korprodi_eskalasi" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi secara manual menugaskan dosen pengganti untuk mata kuliah yang tidak mendapat konfirmasi, atau menghubungi dosen secara langsung.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:executionListener event="end">
+          <ns1:script scriptFormat="javascript">var count = execution.getVariable('retryAssignDosen') || 0;
+count = count + 1;
+execution.setVariable('retryAssignDosen', count);</ns1:script>
+        </ns1:executionListener>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_PG_eskalasi</bpmn:incoming>
+      <bpmn:incoming>F_TB_PG_14_tidak</bpmn:incoming>
+      <bpmn:outgoing>Flow_05i1bnu</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_RetryCheck" name="Retry&#10;Masih Bisa?">
+      <bpmn:documentation id="documentation_buNLOg" />
+      <bpmn:incoming>Flow_05i1bnu</bpmn:incoming>
+      <bpmn:outgoing>Flow_RetryYa</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RetryTidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="EE_GagalAssign" name="Gagal Assign Dosen&#10;— Eskalasi Manual&#10;ke Wadek 1">
+      <bpmn:documentation>Proses gagal assign dosen setelah 3 kali percobaan. Eskalasi manual ke Wadek 1 untuk penentuan dosen di luar sistem.</bpmn:documentation>
+      <bpmn:incoming>Flow_RetryTidak</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="T_DosenKonfirmDigital" name="Dosen Konfirmasi&#10;Kesediaan Digital&#10;di Sistem" ns1:formRef="form_dosen_konfirmasi" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>Dosen mengkonfirmasi kesediaan mengajar melalui sistem digital. Konfirmasi resmi dan tercatat dengan timestamp sebagai bukti kesediaan.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_11</bpmn:incoming>
+      <bpmn:incoming>Flow_RetryYa</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_13</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:boundaryEvent id="BE_TimerDosenSLA" name="Timer: Dosen Tidak&#10;Respons 2 Hari" attachedToRef="T_DosenKonfirmDigital">
+      <bpmn:documentation>Boundary timer 2 hari pada task konfirmasi dosen. Jika dosen tidak merespons dalam 2 hari, task dibatalkan dan eskalasi otomatis ke Korprodi.</bpmn:documentation>
+      <bpmn:outgoing>F_TB_PG_eskalasi</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TED_2hari">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:userTask id="T_KorprodiReviewDraft" name="Korprodi Review&#10;Draft di Dashboard&#10;Terintegrasi" ns1:formRef="form_korprodi_review_draft" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi mereview draft plotting di dashboard terintegrasi. Dapat melakukan penyesuaian minor langsung di antarmuka sebelum mengirim ke dosen untuk konfirmasi.</bpmn:documentation>
+      <bpmn:incoming>F_TB_PG_08</bpmn:incoming>
+      <bpmn:incoming>Flow_1ois8iv</bpmn:incoming>
+      <bpmn:outgoing>F_TB_PG_09</bpmn:outgoing>
+      <bpmn:property id="Property_077xlfu" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1k6cnhq">
+        <bpmn:sourceRef>DataRef_DraftDigital</bpmn:sourceRef>
+        <bpmn:targetRef>Property_077xlfu</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:dataObjectReference id="DataRef_DraftDigital" name="Draft Plotting Digital (Dashboard)" dataObjectRef="DataObject_DraftDigital">
+      <bpmn:documentation>Draft plotting otomatis dalam format digital interaktif di dashboard. Dapat ditinjau dan dimodifikasi langsung tanpa membuka file Excel terpisah.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DraftDigital">
+      <bpmn:documentation id="documentation_lL00Kw" />
+    </bpmn:dataObject>
+    <bpmn:association id="Assoc_Data_AutoPlot" sourceRef="DataRef_DataDosenDB" targetRef="T_AutoPlotting" />
+    <bpmn:association id="Assoc_Ann_SLADosen" sourceRef="TextAnn_SLA_Dosen" targetRef="BE_TimerDosenSLA" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Pengampu_ToBe">
+    <bpmndi:BPMNPlane id="Plane_Pengampu_ToBe" bpmnElement="Penentuan_Pengampu_MataKuliah">
+      <bpmndi:BPMNShape id="S_Pool_PG_TB" bpmnElement="Pool_Pengampu_ToBe" isHorizontal="true">
+        <dc:Bounds x="140" y="80" width="1838" height="830" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Sis_PG" bpmnElement="Lane_Sistem_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="80" width="1808" height="275" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Korp_TB" bpmnElement="Lane_Korprodi_TB_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="355" width="1808" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Dosen_TB" bpmnElement="Lane_Dosen_TB_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="540" width="1808" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Wadek_TB" bpmnElement="Lane_Wadek_TB_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="725" width="1808" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_SE_TB_PG" bpmnElement="SE_SistemMulai">
+        <dc:Bounds x="222" y="242" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="197" y="285" width="87" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_LoadData" bpmnElement="T_LoadDataDosen">
+        <dc:Bounds x="310" y="220" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_SetMK" bpmnElement="T_KorprodiSetMK">
+        <dc:Bounds x="460" y="405" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_AutoPlot" bpmnElement="T_AutoPlotting">
+        <dc:Bounds x="620" y="220" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_KorpRevisi" bpmnElement="T_KorprodiRevisi">
+        <dc:Bounds x="1060" y="405" width="120" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_KorpApprove" bpmnElement="GW_KorprodiApprove" isMarkerVisible="true">
+        <dc:Bounds x="1380" y="420" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1416" y="396" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_WadekGW" bpmnElement="GW_WadekApproveGW" isMarkerVisible="true">
+        <dc:Bounds x="1695" y="790" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1754.5" y="801" width="47" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DataDosenDB" bpmnElement="DataRef_DataDosenDB">
+        <dc:Bounds x="502" y="235" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="490" y="291" width="61" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_FlagViol" bpmnElement="T_FlagViolation">
+        <dc:Bounds x="1060" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_GenDraft" bpmnElement="T_GenerateDraftDigital">
+        <dc:Bounds x="1060" y="240" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_WadekDigital" bpmnElement="T_WadekApproveDigital">
+        <dc:Bounds x="1510" y="775" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_KirimNotifKes" bpmnElement="T_KirimNotifKesediaan">
+        <dc:Bounds x="1345" y="220" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_TB_PG" bpmnElement="EE_PlottingDisahkan_ToBe">
+        <dc:Bounds x="1892" y="427" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1867" y="470" width="87" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_DosenSetuju" bpmnElement="GW_DosenSetuju" isMarkerVisible="true">
+        <dc:Bounds x="1705" y="605" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1735" y="596" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_Violation" bpmnElement="GW_AdaViolation" isMarkerVisible="true">
+        <dc:Bounds x="965" y="185" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="906.5" y="176" width="65" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_ValidasiBeban" bpmnElement="T_ValidasiBebanOtomatis">
+        <dc:Bounds x="780" y="220" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_AutoSync" bpmnElement="T_AutoUpdateSIAKAD">
+        <dc:Bounds x="1770" y="220" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Eskalasi" bpmnElement="T_KorprodiHandleEskalasi">
+        <dc:Bounds x="1505" y="370" width="120" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_RetryCheck" bpmnElement="GW_RetryCheck" isMarkerVisible="true">
+        <dc:Bounds x="1540" y="485" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1490" y="466" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_GagalAssign" bpmnElement="EE_GagalAssign">
+        <dc:Bounds x="1762" y="452" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1747" y="377" width="66" height="66" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_DosenKonfirm" bpmnElement="T_DosenKonfirmDigital">
+        <dc:Bounds x="1505" y="610" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_ReviewDraft" bpmnElement="T_KorprodiReviewDraft">
+        <dc:Bounds x="1220" y="405" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DraftDigital" bpmnElement="DataRef_DraftDigital">
+        <dc:Bounds x="1292" y="225" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1278" y="175" width="64" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_BE_TimerSLA" bpmnElement="BE_TimerDosenSLA">
+        <dc:Bounds x="1607" y="592" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1587" y="550" width="76" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_TB_PG_01" bpmnElement="F_TB_PG_01">
+        <di:waypoint x="258" y="260" />
+        <di:waypoint x="310" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_02" bpmnElement="F_TB_PG_02">
+        <di:waypoint x="430" y="260" />
+        <di:waypoint x="440" y="260" />
+        <di:waypoint x="440" y="445" />
+        <di:waypoint x="460" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_03" bpmnElement="F_TB_PG_03">
+        <di:waypoint x="580" y="445" />
+        <di:waypoint x="590" y="445" />
+        <di:waypoint x="590" y="260" />
+        <di:waypoint x="620" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_04" bpmnElement="F_TB_PG_04">
+        <di:waypoint x="740" y="260" />
+        <di:waypoint x="780" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_05" bpmnElement="F_TB_PG_05">
+        <di:waypoint x="900" y="260" />
+        <di:waypoint x="920" y="260" />
+        <di:waypoint x="920" y="210" />
+        <di:waypoint x="965" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_10tidak" bpmnElement="F_TB_PG_10_tidak">
+        <di:waypoint x="1405" y="470" />
+        <di:waypoint x="1405" y="520" />
+        <di:waypoint x="1120" y="520" />
+        <di:waypoint x="1120" y="485" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1366" y="500" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_16tidak" bpmnElement="F_TB_PG_16_tidak">
+        <di:waypoint x="1720" y="840" />
+        <di:waypoint x="1720" y="890" />
+        <di:waypoint x="1100" y="890" />
+        <di:waypoint x="1100" y="485" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1725" y="863" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_08" bpmnElement="F_TB_PG_08">
+        <di:waypoint x="1180" y="280" />
+        <di:waypoint x="1280" y="280" />
+        <di:waypoint x="1280" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_09" bpmnElement="F_TB_PG_09">
+        <di:waypoint x="1340" y="445" />
+        <di:waypoint x="1380" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_10ya" bpmnElement="F_TB_PG_10_ya">
+        <di:waypoint x="1405" y="420" />
+        <di:waypoint x="1405" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1383" y="389" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_11" bpmnElement="F_TB_PG_11">
+        <di:waypoint x="1465" y="260" />
+        <di:waypoint x="1485" y="260" />
+        <di:waypoint x="1485" y="650" />
+        <di:waypoint x="1505" y="650" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_esk" bpmnElement="F_TB_PG_eskalasi">
+        <di:waypoint x="1643" y="610" />
+        <di:waypoint x="1670" y="610" />
+        <di:waypoint x="1670" y="410" />
+        <di:waypoint x="1625" y="410" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_13" bpmnElement="F_TB_PG_13">
+        <di:waypoint x="1625" y="650" />
+        <di:waypoint x="1665" y="650" />
+        <di:waypoint x="1665" y="630" />
+        <di:waypoint x="1705" y="630" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_15" bpmnElement="F_TB_PG_15">
+        <di:waypoint x="1630" y="815" />
+        <di:waypoint x="1695" y="815" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_16ya" bpmnElement="F_TB_PG_16_ya">
+        <di:waypoint x="1720" y="790" />
+        <di:waypoint x="1720" y="770" />
+        <di:waypoint x="1830" y="770" />
+        <di:waypoint x="1830" y="300" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1759" y="753" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_06ya" bpmnElement="F_TB_PG_06_ya">
+        <di:waypoint x="990" y="185" />
+        <di:waypoint x="990" y="150" />
+        <di:waypoint x="1060" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1013" y="128" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_07" bpmnElement="F_TB_PG_07">
+        <di:waypoint x="1120" y="190" />
+        <di:waypoint x="1120" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_06tidak" bpmnElement="F_TB_PG_06_tidak">
+        <di:waypoint x="990" y="235" />
+        <di:waypoint x="990" y="280" />
+        <di:waypoint x="1060" y="280" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1006" y="283" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_14ya" bpmnElement="F_TB_PG_14_ya">
+        <di:waypoint x="1730" y="655" />
+        <di:waypoint x="1730" y="710" />
+        <di:waypoint x="1580" y="710" />
+        <di:waypoint x="1580" y="775" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1738" y="672" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_end" bpmnElement="F_TB_PG_end">
+        <di:waypoint x="1890" y="260" />
+        <di:waypoint x="1910" y="260" />
+        <di:waypoint x="1910" y="427" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_PG_14tidak" bpmnElement="F_TB_PG_14_tidak">
+        <di:waypoint x="1730" y="605" />
+        <di:waypoint x="1730" y="390" />
+        <di:waypoint x="1625" y="390" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1731" y="553" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_1ois8iv_di" bpmnElement="Flow_1ois8iv">
+        <di:waypoint x="1180" y="445" />
+        <di:waypoint x="1220" y="445" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05i1bnu_di" bpmnElement="Flow_05i1bnu">
+        <di:waypoint x="1565" y="450" />
+        <di:waypoint x="1565" y="485" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RetryYa" bpmnElement="Flow_RetryYa">
+        <di:waypoint x="1565" y="535" />
+        <di:waypoint x="1565" y="610" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1507" y="573" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RetryTidak" bpmnElement="Flow_RetryTidak">
+        <di:waypoint x="1590" y="510" />
+        <di:waypoint x="1780" y="510" />
+        <di:waypoint x="1780" y="488" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1606" y="488" width="68" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Data_AutoPlot" bpmnElement="Assoc_Data_AutoPlot">
+        <di:waypoint x="538" y="260" />
+        <di:waypoint x="620" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_SLADosen" bpmnElement="Assoc_Ann_SLADosen">
+        <di:waypoint x="1480" y="700" />
+        <di:waypoint x="1660" y="700" />
+        <di:waypoint x="1660" y="620" />
+        <di:waypoint x="1641" y="618" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_AutoSuggest" bpmnElement="TextAnn_AutoSuggest">
+        <dc:Bounds x="550" y="127" width="280" height="56" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_SLA_Dosen" bpmnElement="TextAnn_SLA_Dosen">
+        <dc:Bounds x="1290" y="670" width="190" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DataOut_LoadDosen" bpmnElement="DataOut_LoadDosen">
+        <di:waypoint x="430" y="260" />
+        <di:waypoint x="502" y="260" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_DraftDigital" bpmnElement="DataOut_DraftDigital">
+        <di:waypoint x="1180" y="250" />
+        <di:waypoint x="1292" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1k6cnhq_di" bpmnElement="DataInputAssociation_1k6cnhq">
+        <di:waypoint x="1310" y="275" />
+        <di:waypoint x="1310" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_AutoSuggest" bpmnElement="Assoc_Ann_AutoSuggest">
+        <di:waypoint x="680" y="173" />
+        <di:waypoint x="680" y="220" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

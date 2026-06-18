@@ -1,0 +1,42 @@
+{
+  "components": [
+    {
+      "label": "Nama Mata Kuliah",
+      "type": "textfield",
+      "id": "Field_matakuliah",
+      "key": "matakuliah",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Kode Mata Kuliah",
+      "type": "textfield",
+      "id": "Field_kodeMK",
+      "key": "kodeMK",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Nama Dosen yang Diusulkan",
+      "type": "textfield",
+      "id": "Field_dosenDiusulkan",
+      "key": "dosenDiusulkan",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Simulasi: Centang jika ada violation (bentrok jadwal / overload SKS)",
+      "type": "checkbox",
+      "id": "Field_adaViolation",
+      "key": "adaViolation"
+    }
+  ],
+  "type": "default",
+  "id": "form_start_pengampu",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

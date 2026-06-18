@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "label": "Nama Dosen Pengampu Final",
+      "type": "textfield",
+      "id": "Field_dosenDiusulkan",
+      "key": "dosenDiusulkan",
+      "readonly": true
+    },
+    {
+      "label": "Centang jika Anda menyetujui SK Pengesahan ini",
+      "type": "checkbox",
+      "id": "Field_isWadekApprove",
+      "key": "isWadekApprove"
+    }
+  ],
+  "type": "default",
+  "id": "form_wadek_approve",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

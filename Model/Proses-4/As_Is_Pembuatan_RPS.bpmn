@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:ns1="http://camunda.org/schema/1.0/bpmn" targetNamespace="http://fik.prodi.bpm/rps-simpel-as-is" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="AsIs_Pembuatan_RPS">
+    <bpmn:participant id="Pool_RPS_AsIs" name="Penyusunan dan Pengesahan RPS Digital via SIMPEL (AS-IS)" processRef="Proc_RPS_AsIs">
+      <bpmn:documentation>Proses penyusunan dan pengesahan RPS digital melalui sistem SIMPEL pada kondisi AS-IS. Proses sudah cukup terdigitalisasi dengan alur tiga tingkat (Korprodi → GKM → Wadek), namun masih memiliki kelemahan: tidak ada reminder otomatis, tidak ada eskalasi jika deadline terlewat, dan resubmission selalu mereset alur ke Level 1.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_ResetL1">
+      <bpmn:text>PENTING: Setiap resubmission dosen akan MERESET alur ke Level 1 (Korprodi) — bisa memperlambat proses.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_ResetL1" sourceRef="TextAnn_ResetL1" targetRef="T_DosenRevisiRPS" />
+    <bpmn:textAnnotation id="TextAnn_Deadline">
+      <bpmn:text>Tidak ada reminder otomatis. Keterlambatan bergantung pada kedisiplinan individu dosen.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_Deadline" sourceRef="TextAnn_Deadline" targetRef="T_DosenInputRPS" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_RPS_AsIs" name="RPS SIMPEL - AS-IS" isExecutable="true">
+    <bpmn:laneSet id="LS_RPS_AsIs">
+      <bpmn:lane id="Lane_Korprodi_RPS" name="Koordinator Program Studi (Korprodi)">
+        <bpmn:documentation>Korprodi bertanggung jawab atas ploting tim dosen di SIMPEL dan menjadi reviewer Level 1 yang memverifikasi aspek administratif dan kesesuaian beban SKS.</bpmn:documentation>
+        <bpmn:flowNodeRef>SE_MulaiPeriodePloting</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_PlotingDosenKoord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiVerifikL1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_L1Approve</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_SistemGeneratePDF</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KorprodiCatatRevisi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_RPSFinal</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_DosenKoord_RPS" name="Dosen Koordinator Mata Kuliah">
+        <bpmn:documentation>Dosen Koordinator Mata Kuliah memimpin pengisian konten RPS di SIMPEL bersama tim dosen dan merespons catatan revisi dari setiap level reviewer.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_DosenInputRPS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_DosenAjukanRPS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_DosenRevisiRPS</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_GKM_RPS" name="Gugus Kendali Mutu (GKM)">
+        <bpmn:documentation>Gugus Kendali Mutu (GKM) sebagai reviewer Level 2 memverifikasi substansi akademik: kedalaman materi, jumlah Sub-CPMK, dan kesesuaian metode penilaian dengan bobot SKS.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_GKMVerifikL2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_L2Approve</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_GKMCatatRevisi</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Wadek_RPS" name="Wakil Dekan 1 (Wadek 1)">
+        <bpmn:documentation>Wakil Dekan 1 sebagai otoritas pengesahan akhir (Level 3) yang memberikan legalitas formal pada dokumen RPS digital.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_WadekValidasiL3</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_L3Approve</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_MulaiPeriodePloting" name="Periode Ploting&#10;Dosen Dimulai&#10;(Akhir Juli)">
+      <bpmn:documentation>Trigger manual di akhir Juli untuk mempersiapkan semester ganjil (Agustus). Tidak ada pengingat otomatis; bergantung pada inisiatif Korprodi untuk memulai proses.</bpmn:documentation>
+      <bpmn:outgoing>F_RPS_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="T_PlotingDosenKoord" name="Korprodi Ploting&#10;Tim Dosen dan&#10;Dosen Koordinator di SIMPEL" ns1:assignee="${korprodiId}">
+      <bpmn:documentation>Korprodi menentukan daftar mata kuliah, tim pengajar, dan menunjuk Dosen Koordinator melalui sistem SIMPEL. Ini merupakan titik awal resmi siklus hidup RPS.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_01</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_02</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_DosenInputRPS" name="Dosen Koordinator&#10;Input Konten RPS&#10;ke Sistem SIMPEL" ns1:assignee="${dosenKoordId}">
+      <bpmn:documentation>Dosen Koordinator bersama tim mengisi konten RPS langsung ke platform SIMPEL menggunakan format terstruktur: capaian pembelajaran, materi per pertemuan, metode, dan instrumen asesmen.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_02</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_03</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_InputRPS">
+        <bpmn:targetRef>DataRef_DraftRPS</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_DosenAjukanRPS" name="Dosen Klik Tombol&#10;&#39;Ajukan&#39; untuk Mulai&#10;Rantai Verifikasi" ns1:assignee="${dosenKoordId}">
+      <bpmn:documentation>Dosen Koordinator menekan tombol "Ajukan" di SIMPEL setelah konten RPS disepakati tim. Ini memulai rantai verifikasi berjenjang secara resmi.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_03</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_04</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_KorprodiVerifikL1" name="Level 1: Korprodi&#10;Verifikasi Administratif&#10;dan Kesesuaian SKS" ns1:assignee="${korprodiId}">
+      <bpmn:documentation>Level 1: Korprodi memverifikasi aspek administratif — kebenaran ploting dosen, kesesuaian kode mata kuliah, dan pemenuhan distribusi beban SKS. PENTING: setiap resubmission oleh Dosen Koordinator akan mereset alur ke Level 1 ini.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_04</bpmn:incoming>
+      <bpmn:incoming>F_RPS_reset</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_05</bpmn:outgoing>
+      <bpmn:property id="Property_14fk0r5" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1c7nfh5">
+        <bpmn:sourceRef>DataRef_DraftRPS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_14fk0r5</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_L1Approve" name="L1 Approve?">
+      <bpmn:documentation>Keputusan Korprodi: approve (lanjut ke GKM) atau kembalikan dengan catatan revisi? Penolakan mengirimkan RPS kembali ke Dosen Koordinator.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_05</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_06_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_RPS_06_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_GKMVerifikL2" name="Level 2: GKM&#10;Verifikasi Substansi&#10;Akademik dan Sub-CPMK" ns1:assignee="${gkmId}">
+      <bpmn:documentation>Level 2: GKM mengevaluasi substansi akademik secara mendalam — kecukupan Sub-CPMK untuk bobot SKS, relevansi konten, dan kualitas instrumen asesmen.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_06_ya</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_07</bpmn:outgoing>
+      <bpmn:property id="Property_1k01533" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1ieoe89">
+        <bpmn:sourceRef>DataRef_DraftRPS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1k01533</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_L2Approve" name="L2 Approve?">
+      <bpmn:documentation>Keputusan GKM: approve (lanjut ke Wadek) atau kembalikan dengan catatan revisi substansi?</bpmn:documentation>
+      <bpmn:incoming>F_RPS_07</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_08_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_RPS_08_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_GKMCatatRevisi" name="GKM Catat Revisi&#10;Substansi dan&#10;Kembalikan ke Dosen" ns1:assignee="${gkmId}">
+      <bpmn:documentation>GKM mencatat revisi substansi akademik yang diperlukan. Contoh: "Revisi jumlah sub-CPMK (terlalu sedikit untuk 3 SKS) dan selaraskan materi pertemuan ke-10 dengan standar kompetensi terbaru."</bpmn:documentation>
+      <bpmn:incoming>F_RPS_08_tidak</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_revisi2</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_RevisiL2">
+        <bpmn:targetRef>DataRef_CatatanRevisi</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_WadekValidasiL3" name="Level 3: Wadek 1&#10;Validasi dan Tanda&#10;Tangan Digital" ns1:assignee="${wadekId}">
+      <bpmn:documentation>Level 3: Wadek 1 melakukan validasi akhir dan memberikan tanda tangan digital. Memastikan seluruh rantai kendali mutu dari Level 1 dan 2 telah terpenuhi.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_08_ya</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_09</bpmn:outgoing>
+      <bpmn:property id="Property_0jhxx2y" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0nonl6f">
+        <bpmn:sourceRef>DataRef_DraftRPS</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0jhxx2y</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_L3Approve" name="L3 Approve?">
+      <bpmn:documentation>Keputusan Wadek: approve (RPS menjadi Final) atau kembalikan dengan catatan? Penolakan dari Level 3 juga mereset alur ke Level 1.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_09</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_10_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_RPS_10_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_DosenRevisiRPS" name="Dosen Revisi RPS&#10;sesuai Catatan&#10;(Reset ke L1)" ns1:assignee="${dosenKoordId}">
+      <bpmn:documentation>Dosen Koordinator merevisi RPS berdasarkan catatan dari level reviewer manapun. PENTING: setelah revisi dan pengajuan ulang, alur selalu kembali ke Level 1 (Korprodi) — ini memastikan konsistensi tetapi bisa memperlambat proses.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_revisi1</bpmn:incoming>
+      <bpmn:incoming>F_RPS_revisi2</bpmn:incoming>
+      <bpmn:incoming>F_RPS_10_tidak</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_reset</bpmn:outgoing>
+      <bpmn:property id="Property_1sdcn41" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0lgi0jv">
+        <bpmn:sourceRef>DataRef_CatatanRevisi</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1sdcn41</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="T_SistemGeneratePDF" name="Sistem Generate&#10;PDF Final dengan&#10;Tanda Tangan Digital" ns1:type="external" ns1:topic="generate-rps-pdf">
+      <bpmn:documentation>Sistem SIMPEL secara otomatis menghasilkan dokumen PDF RPS dengan format institusional yang seragam dan tanda tangan digital terintegrasi setelah semua tiga level menyetujui.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_10_ya</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_final</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_GenPDF">
+        <bpmn:targetRef>DataRef_RPSFinalPDF</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="F_RPS_01" sourceRef="SE_MulaiPeriodePloting" targetRef="T_PlotingDosenKoord" />
+    <bpmn:sequenceFlow id="F_RPS_02" sourceRef="T_PlotingDosenKoord" targetRef="T_DosenInputRPS" />
+    <bpmn:sequenceFlow id="F_RPS_03" sourceRef="T_DosenInputRPS" targetRef="T_DosenAjukanRPS" />
+    <bpmn:sequenceFlow id="F_RPS_04" sourceRef="T_DosenAjukanRPS" targetRef="T_KorprodiVerifikL1" />
+    <bpmn:sequenceFlow id="F_RPS_reset" sourceRef="T_DosenRevisiRPS" targetRef="T_KorprodiVerifikL1" />
+    <bpmn:sequenceFlow id="F_RPS_05" sourceRef="T_KorprodiVerifikL1" targetRef="GW_L1Approve" />
+    <bpmn:sequenceFlow id="F_RPS_06_ya" name="Approve" sourceRef="GW_L1Approve" targetRef="T_GKMVerifikL2" />
+    <bpmn:sequenceFlow id="F_RPS_06_tidak" name="Revisi" sourceRef="GW_L1Approve" targetRef="T_KorprodiCatatRevisi" />
+    <bpmn:sequenceFlow id="F_RPS_revisi1" sourceRef="T_KorprodiCatatRevisi" targetRef="T_DosenRevisiRPS" />
+    <bpmn:sequenceFlow id="F_RPS_07" sourceRef="T_GKMVerifikL2" targetRef="GW_L2Approve" />
+    <bpmn:sequenceFlow id="F_RPS_08_ya" name="Approve" sourceRef="GW_L2Approve" targetRef="T_WadekValidasiL3" />
+    <bpmn:sequenceFlow id="F_RPS_08_tidak" name="Revisi" sourceRef="GW_L2Approve" targetRef="T_GKMCatatRevisi" />
+    <bpmn:sequenceFlow id="F_RPS_revisi2" sourceRef="T_GKMCatatRevisi" targetRef="T_DosenRevisiRPS" />
+    <bpmn:sequenceFlow id="F_RPS_09" sourceRef="T_WadekValidasiL3" targetRef="GW_L3Approve" />
+    <bpmn:sequenceFlow id="F_RPS_10_ya" name="Approve" sourceRef="GW_L3Approve" targetRef="T_SistemGeneratePDF" />
+    <bpmn:sequenceFlow id="F_RPS_10_tidak" name="Revisi" sourceRef="GW_L3Approve" targetRef="T_DosenRevisiRPS" />
+    <bpmn:sequenceFlow id="F_RPS_final" sourceRef="T_SistemGeneratePDF" targetRef="EE_RPSFinal" />
+    <bpmn:dataObjectReference id="DataRef_DraftRPS" name="Draft RPS (SIMPEL)" dataObjectRef="DataObject_DraftRPS">
+      <bpmn:documentation>Dokumen RPS dalam SIMPEL: capaian pembelajaran, materi 16 pertemuan, metode, instrumen asesmen. Status berubah: Draft → Under Review → Revisi → Final.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DraftRPS" />
+    <bpmn:dataObjectReference id="DataRef_CatatanRevisi" name="Catatan Revisi (SIMPEL)" dataObjectRef="DataObject_CatatanRevisi">
+      <bpmn:documentation>Catatan perbaikan digital dari reviewer melalui fitur feedback SIMPEL. Dikirim otomatis ke Dosen Koordinator sebagai dasar revisi.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_CatatanRevisi" />
+    <bpmn:userTask id="T_KorprodiCatatRevisi" name="Korprodi Catat&#10;Revisi dan Kembalikan&#10;ke Dosen" ns1:assignee="${korprodiId}">
+      <bpmn:documentation>Korprodi mencatat poin-poin revisi yang harus diperbaiki Dosen Koordinator sebelum pengajuan ulang. Catatan ini dikirim melalui notifikasi sistem SIMPEL.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_06_tidak</bpmn:incoming>
+      <bpmn:outgoing>F_RPS_revisi1</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_RevisiL1">
+        <bpmn:targetRef>DataRef_CatatanRevisi</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EE_RPSFinal" name="RPS Status Final&#10;Sah Digunakan&#10;dalam KBM">
+      <bpmn:documentation>RPS mencapai status "Final" — sah secara hukum dan dapat digunakan dalam kegiatan belajar mengajar. Hanya RPS berstatus Final yang diizinkan digunakan.</bpmn:documentation>
+      <bpmn:incoming>F_RPS_final</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataObjectReference id="DataRef_RPSFinalPDF" name="RPS Final (PDF + TTD Digital)" dataObjectRef="DataObject_RPSFinalPDF">
+      <bpmn:documentation>PDF RPS yang telah melewati tiga tingkat verifikasi dengan tanda tangan digital Wadek. Satu-satunya dokumen sah untuk digunakan dalam KBM.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_RPSFinalPDF" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_RPS_AsIs">
+    <bpmndi:BPMNPlane id="Plane_RPS_AsIs" bpmnElement="AsIs_Pembuatan_RPS">
+      <bpmndi:BPMNShape id="S_Pool_RPS_AsIs" bpmnElement="Pool_RPS_AsIs" isHorizontal="true">
+        <dc:Bounds x="140" y="60" width="1676" height="740" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Wadek_RPS" bpmnElement="Lane_Wadek_RPS" isHorizontal="true">
+        <dc:Bounds x="170" y="615" width="1646" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_GKM_RPS" bpmnElement="Lane_GKM_RPS" isHorizontal="true">
+        <dc:Bounds x="170" y="430" width="1646" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_DosenK_RPS" bpmnElement="Lane_DosenKoord_RPS" isHorizontal="true">
+        <dc:Bounds x="170" y="245" width="1646" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Korp_RPS" bpmnElement="Lane_Korprodi_RPS" isHorizontal="true">
+        <dc:Bounds x="170" y="60" width="1646" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_SE_RPS" bpmnElement="SE_MulaiPeriodePloting">
+        <dc:Bounds x="222" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="198" y="175" width="85" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_PlotDosen" bpmnElement="T_PlotingDosenKoord">
+        <dc:Bounds x="310" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_InputRPS" bpmnElement="T_DosenInputRPS">
+        <dc:Bounds x="480" y="295" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_AjukanRPS" bpmnElement="T_DosenAjukanRPS">
+        <dc:Bounds x="650" y="295" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L1Verif" bpmnElement="T_KorprodiVerifikL1">
+        <dc:Bounds x="780" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L1" bpmnElement="GW_L1Approve" isMarkerVisible="true">
+        <dc:Bounds x="955" y="125" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="949" y="101" width="62" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L2Verif" bpmnElement="T_GKMVerifikL2">
+        <dc:Bounds x="1100" y="480" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L2" bpmnElement="GW_L2Approve" isMarkerVisible="true">
+        <dc:Bounds x="1275" y="495" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1263" y="552" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L2Revisi" bpmnElement="T_GKMCatatRevisi">
+        <dc:Bounds x="1360" y="480" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L3Wadek" bpmnElement="T_WadekValidasiL3">
+        <dc:Bounds x="1360" y="665" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L3" bpmnElement="GW_L3Approve" isMarkerVisible="true">
+        <dc:Bounds x="1535" y="680" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1523" y="737" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_RevisiRPS" bpmnElement="T_DosenRevisiRPS">
+        <dc:Bounds x="1040" y="295" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_GenPDF" bpmnElement="T_SistemGeneratePDF">
+        <dc:Bounds x="1540" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DraftRPS" bpmnElement="DataRef_DraftRPS">
+        <dc:Bounds x="802" y="445" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="848" y="446" width="50" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_CatatanRevisi" bpmnElement="DataRef_CatatanRevisi">
+        <dc:Bounds x="1412" y="125" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1394" y="87.5" width="72" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L1Revisi" bpmnElement="T_KorprodiCatatRevisi">
+        <dc:Bounds x="1040" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_RPS" bpmnElement="EE_RPSFinal">
+        <dc:Bounds x="1722" y="132" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1699" y="175" width="84" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_RPSFinalPDF" bpmnElement="DataRef_RPSFinalPDF">
+        <dc:Bounds x="1642" y="255" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1628" y="311" width="88" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_RPS_01" bpmnElement="F_RPS_01">
+        <di:waypoint x="258" y="150" />
+        <di:waypoint x="310" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_02" bpmnElement="F_RPS_02">
+        <di:waypoint x="430" y="150" />
+        <di:waypoint x="450" y="150" />
+        <di:waypoint x="450" y="335" />
+        <di:waypoint x="480" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_03" bpmnElement="F_RPS_03">
+        <di:waypoint x="600" y="335" />
+        <di:waypoint x="650" y="335" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_04" bpmnElement="F_RPS_04">
+        <di:waypoint x="710" y="295" />
+        <di:waypoint x="710" y="150" />
+        <di:waypoint x="780" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_reset" bpmnElement="F_RPS_reset">
+        <di:waypoint x="1040" y="335" />
+        <di:waypoint x="840" y="335" />
+        <di:waypoint x="840" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_05" bpmnElement="F_RPS_05">
+        <di:waypoint x="900" y="150" />
+        <di:waypoint x="955" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_06ya" bpmnElement="F_RPS_06_ya">
+        <di:waypoint x="980" y="175" />
+        <di:waypoint x="980" y="520" />
+        <di:waypoint x="1100" y="520" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="987" y="213" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_06tidak" bpmnElement="F_RPS_06_tidak">
+        <di:waypoint x="1005" y="150" />
+        <di:waypoint x="1040" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1006" y="153" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_rev1" bpmnElement="F_RPS_revisi1">
+        <di:waypoint x="1100" y="190" />
+        <di:waypoint x="1100" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_07" bpmnElement="F_RPS_07">
+        <di:waypoint x="1220" y="520" />
+        <di:waypoint x="1275" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_08ya" bpmnElement="F_RPS_08_ya">
+        <di:waypoint x="1300" y="545" />
+        <di:waypoint x="1300" y="705" />
+        <di:waypoint x="1360" y="705" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1305" y="622" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_08tidak" bpmnElement="F_RPS_08_tidak">
+        <di:waypoint x="1325" y="520" />
+        <di:waypoint x="1360" y="520" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1330" y="500" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_rev2" bpmnElement="F_RPS_revisi2">
+        <di:waypoint x="1420" y="480" />
+        <di:waypoint x="1420" y="400" />
+        <di:waypoint x="1100" y="400" />
+        <di:waypoint x="1100" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_09" bpmnElement="F_RPS_09">
+        <di:waypoint x="1480" y="705" />
+        <di:waypoint x="1535" y="705" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_10ya" bpmnElement="F_RPS_10_ya">
+        <di:waypoint x="1560" y="680" />
+        <di:waypoint x="1560" y="650" />
+        <di:waypoint x="1510" y="650" />
+        <di:waypoint x="1510" y="150" />
+        <di:waypoint x="1540" y="150" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1519" y="624" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_10tidak" bpmnElement="F_RPS_10_tidak">
+        <di:waypoint x="1585" y="705" />
+        <di:waypoint x="1640" y="705" />
+        <di:waypoint x="1640" y="335" />
+        <di:waypoint x="1160" y="335" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1590" y="680" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_RPS_final" bpmnElement="F_RPS_final">
+        <di:waypoint x="1660" y="150" />
+        <di:waypoint x="1722" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_ResetL1" bpmnElement="TextAnn_ResetL1">
+        <dc:Bounds x="1180" y="250" width="280" height="56" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_Deadline" bpmnElement="TextAnn_Deadline">
+        <dc:Bounds x="200" y="360" width="260" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DataOut_InputRPS" bpmnElement="DataOut_InputRPS">
+        <di:waypoint x="540" y="375" />
+        <di:waypoint x="540" y="470" />
+        <di:waypoint x="802" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1c7nfh5_di" bpmnElement="DataInputAssociation_1c7nfh5">
+        <di:waypoint x="820" y="445" />
+        <di:waypoint x="820" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1ieoe89_di" bpmnElement="DataInputAssociation_1ieoe89">
+        <di:waypoint x="820" y="495" />
+        <di:waypoint x="820" y="541" />
+        <di:waypoint x="1100" y="539" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_RevisiL2" bpmnElement="DataOut_RevisiL2">
+        <di:waypoint x="1470" y="480" />
+        <di:waypoint x="1470" y="150" />
+        <di:waypoint x="1448" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0nonl6f_di" bpmnElement="DataInputAssociation_0nonl6f">
+        <di:waypoint x="820" y="495" />
+        <di:waypoint x="820" y="731" />
+        <di:waypoint x="1360" y="731" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0lgi0jv_di" bpmnElement="DataInputAssociation_0lgi0jv">
+        <di:waypoint x="1430" y="175" />
+        <di:waypoint x="1430" y="220" />
+        <di:waypoint x="1130" y="220" />
+        <di:waypoint x="1130" y="295" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_GenPDF" bpmnElement="DataOut_GenPDF">
+        <di:waypoint x="1618" y="190" />
+        <di:waypoint x="1648" y="255" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_RevisiL1" bpmnElement="DataOut_RevisiL1">
+        <di:waypoint x="1160" y="150" />
+        <di:waypoint x="1412" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_ResetL1" bpmnElement="Assoc_Ann_ResetL1">
+        <di:waypoint x="1212" y="306" />
+        <di:waypoint x="1160" y="319" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Deadline" bpmnElement="Assoc_Ann_Deadline">
+        <di:waypoint x="435" y="360" />
+        <di:waypoint x="480" y="349" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

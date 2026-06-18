@@ -1,0 +1,750 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:ns1="http://camunda.org/schema/1.0/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://fik.prodi.bpm/pemilihan-pembimbing-to-be" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="Pemilihan_Pembimbing_TA">
+    <bpmn:participant id="Pool_ToBe" name="Proses Pemilihan Dosen Pembimbing TA (TO-BE)" processRef="Process_ToBe">
+      <bpmn:documentation>Proses pemilihan dosen pembimbing TA pada kondisi target (TO-BE). Menggunakan arsitektur event-driven berbasis middleware API untuk menjembatani data UNISIS ke web. Tiga inovasi utama: (1) deteksi otomatis 130 SKS, (2) Advisor Marketplace dengan kuota real-time, (3) eskalasi otomatis berbasis timer SLA.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_AutoTrigger">
+      <bpmn:text>Middleware otomatis query UNISIS, tidak perlu mahasiswa datang ke PA.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_AutoLock">
+      <bpmn:text>Auto-lock kuota ke-10. Slot otomatis bebas saat mahasiswa lulus (Graduation Sync).</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_Trigger" sourceRef="TextAnn_AutoTrigger" targetRef="StartEvent_SistemDeteksiSKS" />
+    <bpmn:association id="Assoc_Ann_AutoLock" sourceRef="TextAnn_AutoLock" targetRef="Task_CekKuotaOtomatis" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_ToBe" name="Pemilihan Pembimbing TA - TO-BE (Automated)" isExecutable="true" ns1:historyTimeToLive="30">
+    <bpmn:laneSet id="LaneSet_ToBe">
+      <bpmn:lane id="Lane_Sistem" name="SISTEM (Automated Service)">
+        <bpmn:documentation>Lane khusus untuk Service Tasks yang dieksekusi secara otomatis oleh sistem tanpa intervensi manusia. Mencakup sinkronisasi data, pengiriman notifikasi, pengecekan kuota, dan pembaruan database.</bpmn:documentation>
+        <bpmn:flowNodeRef>StartEvent_SistemDeteksiSKS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_KirimNotifPA</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_KirimRequestKePembimbing</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_EskalasiKeProdi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_AutoUpdateDatabase</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CekKuotaOtomatis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_SelesaiOtomatis</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_KirimKonfirmasiSemua</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_DosenPA_ToBe" name="Dosen PA (Penasehat Akademik)">
+        <bpmn:documentation>Dosen PA menerima notifikasi otomatis dari sistem dan dapat mereview status mahasiswanya di dashboard kapan saja. Menjadwalkan konseling digital tanpa perlu rapat koordinasi terlebih dahulu.</bpmn:documentation>
+        <bpmn:flowNodeRef>Task_PAValidasiDigital</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_ValidasiPABerhasil</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_MahasiswaTidakLayak</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Mahasiswa_ToBe" name="Mahasiswa">
+        <bpmn:documentation>Mahasiswa menerima notifikasi peringatan dan dapat merespons secara digital melalui portal akademik, mengkonfirmasi status studi mereka tanpa harus datang ke kampus.</bpmn:documentation>
+        <bpmn:flowNodeRef>Task_BrowseAdvisorMarketplace</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SubmitRequestDigital</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CariPembimbingLain_ToBe</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Pembimbing_ToBe" name="Dosen Pembimbing TA">
+        <bpmn:documentation>Dosen pembimbing menerima notifikasi request digital dan dapat memberikan approve atau reject melalui sistem. Terikat SLA 3 hari respons.</bpmn:documentation>
+        <bpmn:flowNodeRef>Task_PembimbingReviewRequest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_PembimbingApprove</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_0p0ned1</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Prodi" name="Koordinator Prodi (Eskalasi)">
+        <bpmn:documentation>Koordinator Prodi menangani eskalasi jika dosen tidak merespons dalam SLA atau ketika tidak ada pembimbing alternatif yang tersedia secara otomatis.</bpmn:documentation>
+        <bpmn:flowNodeRef>Task_ProdiRoutingManual</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EndEvent_EskalasiSelesai</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_SistemDeteksiSKS" name="Sistem Deteksi&#10;Mahasiswa ≥ 130 SKS&#10;(via Middleware UNISIS)">
+      <bpmn:documentation>Trigger otomatis: middleware API melakukan query ke UNISIS secara periodik dan mendeteksi mahasiswa yang telah mencapai 130 SKS dengan status UKT lunas. Menggantikan proses manual mahasiswa mendatangi Dosen PA.</bpmn:documentation>
+      <bpmn:outgoing>Flow_T01</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgDef_01" messageRef="Message_00knven" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_KirimNotifPA" name="Kirim Notifikasi&#10;Otomatis ke PA&#10;(Email Institusional)">
+      <bpmn:documentation>Sistem mengirim notifikasi email institusional otomatis ke Dosen PA yang berisi informasi mahasiswa layak TA beserta ringkasan data akademiknya. Tidak memerlukan tindakan manual dari siapapun.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">// Inisialisasi data pengajuan Tugas Akhir mahasiswa
+execution.setVariable('namaMahasiswa', 'Vega Setiawan');
+execution.setVariable('nimMahasiswa', '2310512108');
+execution.setVariable('totalSKS', 134);
+execution.setVariable('dosenUsulan', 'Ibu Anita Muliawati, M.Kom.');
+
+var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+var sks = execution.getVariable('totalSKS');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] 🎓 PROSES 2 -&gt; Deteksi Eligibilitas TA",
+    "description": "Sistem mendeteksi mahasiswa telah menembus batas syarat SKS. Email otomatis berhasil dikirim ke Penasehat Akademik.",
+    "color": 11039861,
+    "fields": [
+      { "name": "Kandidat", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "SKS Terdata", "value": sks + " SKS", "inline": true },
+      { "name": "Status Verifikasi", "value": "Menunggu Validasi KHS oleh Dosen PA", "inline": false }
+    ],
+    "footer": { "text": "Source Gateway: Middleware UNISIS Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T01</bpmn:incoming>
+      <bpmn:outgoing>Flow_T02</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_NotifPA">
+        <bpmn:targetRef>DataRef_NotifEligible</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_PAValidasiDigital" name="PA Validasi KHS&#10;Secara Digital&#10;(One-Click di Dashboard)" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>Dosen PA melakukan validasi digital one-click di dashboard terintegrasi. Data KHS sudah ditampilkan oleh sistem sehingga PA tidak perlu membuka UNISIS secara terpisah.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="namaMahasiswa" type="string">
+            <ns1:properties />
+            <ns1:validation>
+              <ns1:constraint name="readonly" />
+            </ns1:validation>
+          </ns1:formField>
+          <ns1:formField id="totalSKS" type="long">
+            <ns1:validation>
+              <ns1:constraint name="readonly" />
+            </ns1:validation>
+          </ns1:formField>
+          <ns1:formField id="isKHSValid" label="Apakah data KHS &#38; SKS mahasiswa ini VALID? (Centang jika Ya)" type="boolean" />
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T02</bpmn:incoming>
+      <bpmn:outgoing>Flow_T03</bpmn:outgoing>
+      <bpmn:property id="Property_17atqav" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0pboqkt">
+        <bpmn:sourceRef>DataRef_NotifEligible</bpmn:sourceRef>
+        <bpmn:targetRef>Property_17atqav</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_ValidasiPABerhasil" name="Validasi PA&#10;Berhasil?">
+      <bpmn:documentation>Keputusan berdasarkan hasil validasi digital PA. Ya: mahasiswa layak dan sistem melepas akses ke Advisor Marketplace. Tidak/Error: sistem mengirim notifikasi penolakan ke mahasiswa beserta alasan.</bpmn:documentation>
+      <bpmn:incoming>Flow_T03</bpmn:incoming>
+      <bpmn:outgoing>Flow_T04</bpmn:outgoing>
+      <bpmn:outgoing>Flow_T05</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_BrowseAdvisorMarketplace" name="Browse Advisor&#10;Marketplace&#10;(Lihat Slot Real-Time)" ns1:candidateGroups="Mahasiswa">
+      <bpmn:documentation>Mahasiswa mengakses Advisor Marketplace — antarmuka web yang menampilkan daftar pembimbing tersedia beserta spesialisasi, rekam jejak RPS dari SIMPEL, dan sisa slot kuota secara real-time.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="slotSisaDosen" label="Sisa Slot Dosen Usulan Saat Ini:" type="long">
+            <ns1:validation>
+              <ns1:constraint name="readonly" />
+            </ns1:validation>
+          </ns1:formField>
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T06</bpmn:incoming>
+      <bpmn:outgoing>Flow_T07</bpmn:outgoing>
+      <bpmn:property id="Property_13sm294" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1mgzeqz">
+        <bpmn:sourceRef>DataRef_AdvisorMarketplace</bpmn:sourceRef>
+        <bpmn:targetRef>Property_13sm294</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_SubmitRequestDigital" name="Submit Request&#10;Digital ke Calon&#10;Pembimbing" ns1:candidateGroups="Mahasiswa">
+      <bpmn:documentation>Mahasiswa mengirim request digital resmi ke calon pembimbing yang dipilih. Request tercatat dengan timestamp dan menjadi bagian dari audit trail resmi — menggantikan japri/lisan.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="judulTA" label="Masukkan Judul Tugas Akhir yang Diajukan:" type="string" />
+          <ns1:formField id="abstrakTA" label="Masukkan Ringkasan/Abstrak Proposal:" type="string" />
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T07</bpmn:incoming>
+      <bpmn:incoming>Flow_T11</bpmn:incoming>
+      <bpmn:outgoing>Flow_T08</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Request">
+        <bpmn:targetRef>DataRef_DigitalRequest</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_KirimRequestKePembimbing" name="Kirim Notifikasi&#10;Request ke Pembimbing&#10;(dengan Deadline SLA)">
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+var dosen = execution.getVariable('dosenUsulan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] 🎓 PROSES 2 -&gt; Pengiriman Berkas ke Calon Pembimbing",
+    "description": "Notifikasi draf proposal masuk ke portal dosen pembimbing. Arloji pengawasan batas waktu (SLA) resmi dinyalakan.",
+    "color": 10181046,
+    "fields": [
+      { "name": "Pengaju", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "Calon Pembimbing", "value": dosen, "inline": true },
+      { "name": "Batas Waktu Respon", "value": "⏳ 3 Hari Kerja (Timer SLA Active)", "inline": false }
+    ],
+    "footer": { "text": "Camunda Core Event: Boundary Timer Activation" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T08</bpmn:incoming>
+      <bpmn:outgoing>Flow_T09</bpmn:outgoing>
+      <bpmn:property id="Property_1dancoh" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_18jmikw">
+        <bpmn:sourceRef>DataRef_DigitalRequest</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1dancoh</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_PembimbingReviewRequest" name="Pembimbing Review&#10;dan Approve/Reject&#10;Request Mahasiswa" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>Dosen pembimbing menerima notifikasi request dan dapat mereview detail topik TA mahasiswa, lalu memberikan keputusan approve atau reject melalui antarmuka sistem dalam SLA 3 hari.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="judulTA" type="string">
+            <ns1:validation>
+              <ns1:constraint name="readonly" />
+            </ns1:validation>
+          </ns1:formField>
+          <ns1:formField id="isApprovedPembimbing" label="Apakah Anda MENERIMA pengajuan bimbingan mahasiswa ini? (Centang jika SETUJU)" type="boolean" />
+          <ns1:formField id="catatanPembimbing" label="Catatan / Alasan (Opsional):" type="string" />
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T09</bpmn:incoming>
+      <bpmn:outgoing>Flow_T15</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_PembimbingApprove" name="Pembimbing&#10;Approve?">
+      <bpmn:documentation>Keputusan pembimbing. Approve: sistem langsung memproses pembaruan database. Reject/Tidak Merespons: mahasiswa diarahkan untuk memilih pembimbing alternatif di Marketplace.</bpmn:documentation>
+      <bpmn:incoming>Flow_T15</bpmn:incoming>
+      <bpmn:outgoing>Flow_T16a</bpmn:outgoing>
+      <bpmn:outgoing>Flow_T11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_EskalasiKeProdi" name="Eskalasi Otomatis&#10;ke Koordinator Prodi&#10;(Notifikasi Darurat)">
+      <bpmn:documentation>Sistem mengirim notifikasi eskalasi otomatis ke Koordinator Prodi beserta informasi mahasiswa dan dosen yang tidak merespons, sehingga Prodi dapat melakukan routing manual ke pembimbing alternatif.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+var dosen = execution.getVariable('dosenUsulan');
+var judul = execution.getVariable('judulTA');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "⚠️ [📢 NOTIFIKASI ESKALASI] 🎓 PROSES 2 -&gt; Batas Waktu SLA Terlampaui",
+    "description": "Sistem mendeteksi adanya keterlambatan respon dari pihak dosen pembimbing. Hak penunjukan alternatif resmi diambil alih oleh Program Studi.",
+    "color": 12597547, // Warna Merah Peringatan Kritis
+    "fields": [
+      { "name": "Mahasiswa", "value": nama + " (" + nim + ")", "inline": true },
+      { "name": "Judul Proposal TA", "value": "" + judul, "inline": false },
+      { "name": "Dosen Target Awal", "value": dosen, "inline": true },
+      { "name": "Status Alur Kerja", "value": "🚨 Dialihkan otomatis ke meja Koordinator Prodi (`g4kps`)", "inline": false }
+    ],
+    "footer": { "text": "SLA Monitor Component | Interrupting Boundary Event" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_0r9un3u</bpmn:incoming>
+      <bpmn:outgoing>Flow_T17</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Task_ProdiRoutingManual" name="Koprodi Assign&#10;Pembimbing Alternatif&#10;secara Manual" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Koordinator Prodi secara manual menugaskan pembimbing alternatif berdasarkan eskalasi dari sistem, memastikan tidak ada mahasiswa yang terlantar tanpa pembimbing.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="dosenUsulan" label="Nama Dosen Sebelumnya (Gagal SLA/Ditolak):" type="string">
+            <ns1:validation>
+              <ns1:constraint name="readonly" />
+            </ns1:validation>
+          </ns1:formField>
+          <ns1:formField id="dosenUsulan" label="Ketik NIDN/Nama Dosen Baru yang Anda Tunjuk:" type="string" />
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T17</bpmn:incoming>
+      <bpmn:outgoing>Flow_T14</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_AutoUpdateDatabase" name="Auto-Update Database&#10;Kurangi Kuota Pembimbing&#10;+1 Mahasiswa Terdaftar">
+      <bpmn:documentation>Service Task yang secara otomatis memperbarui database: kuota dosen berkurang 1, status mahasiswa berubah menjadi "Terdaftar Pembimbing", dan record tersimpan di Lentera dengan audit trail lengkap.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var dosen = execution.getVariable('dosenUsulan');
+var slotAwal = execution.getVariable('slotSisaDosen');
+var slotBaru = slotAwal - 1;
+
+execution.setVariable('slotSisaDosen', slotBaru);
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 🎓 PROSES 2 -&gt; Modifikasi Partisi Data Kuota",
+    "description": "Persetujuan terdeteksi. Sistem melakukan mutasi pengurangan kapasitas bimbingan dosen di basis data.",
+    "color": 7616946,
+    "fields": [
+      { "name": "Nama Dosen", "value": dosen, "inline": true },
+      { "name": "Kapasitas Baru", "value": slotBaru + " Slot Tersisa", "inline": true }
+    ],
+    "footer": { "text": "Data Writer Component: Update Transaction Success" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T16a</bpmn:incoming>
+      <bpmn:outgoing>Flow_T18</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:dataObjectReference id="DataRef_NotifEligible" name="Notifikasi Eligibilitas (130 SKS + UKT Lunas)" dataObjectRef="DataObject_NotifEligible">
+      <bpmn:documentation>Notifikasi otomatis dari middleware ke Dosen PA saat mahasiswa memenuhi syarat 130 SKS dan UKT lunas. Menggantikan kunjungan fisik mahasiswa ke PA.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_NotifEligible" />
+    <bpmn:serviceTask id="Task_CekKuotaOtomatis" name="Cek Kuota Pembimbing&#10;Real-Time (Auto-Lock&#10;jika Penuh)">
+      <bpmn:documentation>Service Task otomatis yang mengquery database kuota pembimbing secara real-time. Pembimbing dengan kuota penuh (10 mahasiswa) otomatis di-lock dari daftar pilihan di Advisor Marketplace.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var dosen = execution.getVariable('dosenUsulan');
+
+// Simulasi kuota bimbingan dosen di sistem database
+var sisaKuota = 2; 
+execution.setVariable('slotSisaDosen', sisaKuota);
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 🎓 PROSES 2 -&gt; Live Quota Verification",
+    "description": "Mesin melakukan pengecekan matriks beban bimbingan dosen pada repositori fakultas.",
+    "color": 7616946,
+    "fields": [
+      { "name": "Dosen Target", "value": dosen, "inline": true },
+      { "name": "Sisa Kuota Slot", "value": sisaKuota + " Mahasiswa Lagi", "inline": true },
+      { "name": "Aksi Sistem", "value": "Membuka gerbang 'Submit Request Digital' ke mahasiswa.", "inline": false }
+    ],
+    "footer": { "text": "Database Component: Auto-Lock Advisor Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T04</bpmn:incoming>
+      <bpmn:outgoing>Flow_T06</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Marketplace">
+        <bpmn:targetRef>DataRef_AdvisorMarketplace</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="EndEvent_MahasiswaTidakLayak" name="Proses Dihentikan&#10;(Mahasiswa Tidak&#10;Memenuhi Syarat)">
+      <bpmn:documentation>Proses dihentikan karena mahasiswa tidak memenuhi syarat (SKS kurang atau UKT belum lunas). Sistem mengirim notifikasi ke mahasiswa beserta informasi kekurangannya.</bpmn:documentation>
+      <bpmn:incoming>Flow_T05</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_CariPembimbingLain_ToBe" name="Mahasiswa Pilih&#10;Pembimbing Lain&#10;di Marketplace" ns1:candidateGroups="Mahasiswa">
+      <bpmn:documentation>Mahasiswa memilih pembimbing alternatif di Advisor Marketplace. Berbeda dengan AS-IS, mahasiswa langsung melihat daftar pembimbing yang tersedia (sudah difilter kuota) sehingga tidak perlu japri satu per satu.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:formData>
+          <ns1:formField id="dosenUsulan" label="Ketik Nama Dosen Pembimbing Alternatif Pilihan Baru:" type="string" />
+        </ns1:formData>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T11_helper</bpmn:incoming>
+      <bpmn:outgoing>Flow_T11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="EndEvent_EskalasiSelesai" name="Proses Selesai&#10;via Eskalasi Prodi">
+      <bpmn:documentation>Proses selesai melalui jalur eskalasi Prodi. Pembimbing ditugaskan secara manual oleh Koordinator Prodi dan tercatat di sistem.</bpmn:documentation>
+      <bpmn:incoming>Flow_T14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_SelesaiOtomatis" name="Pembimbing TA&#10;Resmi Terdaftar&#10;(Audit Trail Digital)">
+      <bpmn:documentation>Proses selesai dengan sempurna. Pembimbing TA terdaftar secara digital di Lentera dengan audit trail lengkap (timestamp, identitas aktor, riwayat keputusan). Semua pihak menerima konfirmasi otomatis.</bpmn:documentation>
+      <bpmn:incoming>Flow_T16</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_KirimKonfirmasiSemua" name="Kirim Konfirmasi&#10;ke Mahasiswa, PA,&#10;Prodi, dan Pembimbing">
+      <bpmn:documentation>Sistem mengirim konfirmasi resmi ke semua pihak: mahasiswa, Dosen PA, Dosen Pembimbing, dan Koordinator Prodi. Menggantikan notifikasi manual yang sering terlambat atau tidak tersampaikan.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var nama = execution.getVariable('namaMahasiswa');
+var nim = execution.getVariable('nimMahasiswa');
+var dosen = execution.getVariable('dosenUsulan');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🏁 [NOTIFIKASI OPERASIONAL] 🎓 PROSES 2 -&gt; Pengesahan Pembimbing TA Selesai",
+    "description": "Sukses! Surat keputusan digital berhasil diterbitkan dan disiarkan ke seluruh aktor pemangku kepentingan.",
+    "color": 3066993,
+    "fields": [
+      { "name": "Mahasiswa Bimbingan", "value": nama + " (" + nim + ")", "inline": false },
+      { "name": "Dosen Pembimbing Sah", "value": dosen, "inline": true },
+      { "name": "Arsip Digital", "value": "✅ Terpahat di Smart Contract Audit Trail", "inline": true }
+    ],
+    "footer": { "text": "End-to-End Execution Complete | Tenant 4" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_T18</bpmn:incoming>
+      <bpmn:outgoing>Flow_T16</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_AuditTrail">
+        <bpmn:targetRef>DataRef_AuditTrail</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:dataObjectReference id="DataRef_AuditTrail" name="Audit Trail Digital + Smart Contract" dataObjectRef="DataObject_AuditTrail">
+      <bpmn:documentation>Rekam jejak lengkap seluruh transaksi tersimpan permanen. Setelah pembimbing disetujui, supervisi diformalkan sebagai Smart Contract blockchain yang immutable.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_AuditTrail" />
+    <bpmn:dataObjectReference id="DataRef_DigitalRequest" name="Request Pembimbing Digital (Formal)" dataObjectRef="DataObject_DigitalRequest">
+      <bpmn:documentation>Request pengajuan pembimbing yang dikirim secara digital oleh mahasiswa. Tercatat dengan timestamp sebagai audit trail resmi — menggantikan japri/lisan.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DigitalRequest" />
+    <bpmn:dataObjectReference id="DataRef_AdvisorMarketplace" name="Data Advisor Marketplace (Kuota Real-Time)" dataObjectRef="DataObject_AdvisorMarketplace">
+      <bpmn:documentation>Data ketersediaan pembimbing secara real-time: nama, spesialisasi, sisa slot kuota. Ditampilkan di dashboard mahasiswa — menggantikan japri/lisan.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_AdvisorMarketplace" />
+    <bpmn:sequenceFlow id="Flow_T01" sourceRef="StartEvent_SistemDeteksiSKS" targetRef="Task_KirimNotifPA" />
+    <bpmn:sequenceFlow id="Flow_T02" sourceRef="Task_KirimNotifPA" targetRef="Task_PAValidasiDigital" />
+    <bpmn:sequenceFlow id="Flow_T03" sourceRef="Task_PAValidasiDigital" targetRef="Gateway_ValidasiPABerhasil" />
+    <bpmn:sequenceFlow id="Flow_T04" name="Ya, Layak" sourceRef="Gateway_ValidasiPABerhasil" targetRef="Task_CekKuotaOtomatis">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isKHSValid == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T05" name="Tidak, Tidak Layak" sourceRef="Gateway_ValidasiPABerhasil" targetRef="EndEvent_MahasiswaTidakLayak">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isKHSValid == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T06" sourceRef="Task_CekKuotaOtomatis" targetRef="Task_BrowseAdvisorMarketplace" />
+    <bpmn:sequenceFlow id="Flow_T07" sourceRef="Task_BrowseAdvisorMarketplace" targetRef="Task_SubmitRequestDigital" />
+    <bpmn:sequenceFlow id="Flow_T11_helper" sourceRef="Task_CariPembimbingLain_ToBe" targetRef="Task_SubmitRequestDigital" />
+    <bpmn:sequenceFlow id="Flow_T08" sourceRef="Task_SubmitRequestDigital" targetRef="Task_KirimRequestKePembimbing" />
+    <bpmn:sequenceFlow id="Flow_T09" sourceRef="Task_KirimRequestKePembimbing" targetRef="Task_PembimbingReviewRequest" />
+    <bpmn:sequenceFlow id="Flow_T15" sourceRef="Task_PembimbingReviewRequest" targetRef="Gateway_PembimbingApprove" />
+    <bpmn:sequenceFlow id="Flow_T16a" name="Ya, Approve" sourceRef="Gateway_PembimbingApprove" targetRef="Task_AutoUpdateDatabase">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isApprovedPembimbing == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T11" name="Tidak, Reject" sourceRef="Gateway_PembimbingApprove" targetRef="Task_CariPembimbingLain_ToBe">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isApprovedPembimbing == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_T17" sourceRef="Task_EskalasiKeProdi" targetRef="Task_ProdiRoutingManual" />
+    <bpmn:sequenceFlow id="Flow_T14" sourceRef="Task_ProdiRoutingManual" targetRef="EndEvent_EskalasiSelesai" />
+    <bpmn:sequenceFlow id="Flow_T18" sourceRef="Task_AutoUpdateDatabase" targetRef="Task_KirimKonfirmasiSemua" />
+    <bpmn:sequenceFlow id="Flow_T16" sourceRef="Task_KirimKonfirmasiSemua" targetRef="EndEvent_SelesaiOtomatis" />
+    <bpmn:sequenceFlow id="Flow_0r9un3u" sourceRef="Event_0p0ned1" targetRef="Task_EskalasiKeProdi" />
+    <bpmn:boundaryEvent id="Event_0p0ned1" attachedToRef="Task_PembimbingReviewRequest">
+      <bpmn:outgoing>Flow_0r9un3u</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_04gqj85">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+  </bpmn:process>
+  <bpmn:message id="Message_00knven" name="msg_deteksi_eligibilitas_sks" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ToBe">
+    <bpmndi:BPMNPlane id="BPMNPlane_ToBe" bpmnElement="Pemilihan_Pembimbing_TA">
+      <bpmndi:BPMNShape id="Shape_Pool_ToBe" bpmnElement="Pool_ToBe" isHorizontal="true">
+        <dc:Bounds x="160" y="160" width="1800" height="925" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Prodi" bpmnElement="Lane_Prodi" isHorizontal="true">
+        <dc:Bounds x="190" y="900" width="1770" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Pembimbing_ToBe" bpmnElement="Lane_Pembimbing_ToBe" isHorizontal="true">
+        <dc:Bounds x="190" y="715" width="1770" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Mahasiswa_ToBe" bpmnElement="Lane_Mahasiswa_ToBe" isHorizontal="true">
+        <dc:Bounds x="190" y="530" width="1770" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_DosenPA_ToBe" bpmnElement="Lane_DosenPA_ToBe" isHorizontal="true">
+        <dc:Bounds x="190" y="345" width="1770" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Sistem" bpmnElement="Lane_Sistem" isHorizontal="true">
+        <dc:Bounds x="190" y="160" width="1770" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Start_ToBe" bpmnElement="StartEvent_SistemDeteksiSKS">
+        <dc:Bounds x="252" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="227" y="275" width="86" height="66" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_KirimNotifPA" bpmnElement="Task_KirimNotifPA">
+        <dc:Bounds x="340" y="210" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PAValidasi" bpmnElement="Task_PAValidasiDigital">
+        <dc:Bounds x="460" y="395" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_ValidasiPA" bpmnElement="Gateway_ValidasiPABerhasil" isMarkerVisible="true">
+        <dc:Bounds x="640" y="410" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="638" y="467" width="55" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Browse" bpmnElement="Task_BrowseAdvisorMarketplace">
+        <dc:Bounds x="820" y="580" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Submit" bpmnElement="Task_SubmitRequestDigital">
+        <dc:Bounds x="980" y="580" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_KirimRequest" bpmnElement="Task_KirimRequestKePembimbing">
+        <dc:Bounds x="1060" y="210" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_PembimbingReview" bpmnElement="Task_PembimbingReviewRequest">
+        <dc:Bounds x="1260" y="765" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_GW_Approve" bpmnElement="Gateway_PembimbingApprove" isMarkerVisible="true">
+        <dc:Bounds x="1435" y="780" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1389" y="766" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Eskalasi" bpmnElement="Task_EskalasiKeProdi">
+        <dc:Bounds x="1460" y="210" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_ProdiRouting" bpmnElement="Task_ProdiRoutingManual">
+        <dc:Bounds x="1460" y="950" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_AutoUpdate" bpmnElement="Task_AutoUpdateDatabase">
+        <dc:Bounds x="1600" y="210" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_NotifEligible" bpmnElement="DataRef_NotifEligible">
+        <dc:Bounds x="502" y="225" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="483" y="162" width="74" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CekKuota_ToBe" bpmnElement="Task_CekKuotaOtomatis">
+        <dc:Bounds x="700" y="210" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_TidakLayak" bpmnElement="EndEvent_MahasiswaTidakLayak">
+        <dc:Bounds x="762" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="736" y="460" width="90" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CariLain_ToBe" bpmnElement="Task_CariPembimbingLain_ToBe">
+        <dc:Bounds x="1160" y="580" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Eskalasi" bpmnElement="EndEvent_EskalasiSelesai">
+        <dc:Bounds x="1632" y="972" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1607" y="1015" width="87" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Selesai" bpmnElement="EndEvent_SelesaiOtomatis">
+        <dc:Bounds x="1892" y="232" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1871" y="275" width="79" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_KirimKonfirmasi" bpmnElement="Task_KirimKonfirmasiSemua">
+        <dc:Bounds x="1760" y="210" width="80" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_AuditTrail" bpmnElement="DataRef_AuditTrail">
+        <dc:Bounds x="1782" y="375" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1758" y="431" width="84" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DigitalRequest" bpmnElement="DataRef_DigitalRequest">
+        <dc:Bounds x="1102" y="385" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1082" y="441" width="76" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_AdvisorMarketplace" bpmnElement="DataRef_AdvisorMarketplace">
+        <dc:Bounds x="862" y="355" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="765" y="360" width="90" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_18oznhr_di" bpmnElement="Event_0p0ned1">
+        <dc:Bounds x="1362" y="747" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_T01" bpmnElement="Flow_T01">
+        <di:waypoint x="288" y="250" />
+        <di:waypoint x="340" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T02" bpmnElement="Flow_T02">
+        <di:waypoint x="400" y="290" />
+        <di:waypoint x="400" y="435" />
+        <di:waypoint x="460" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T03" bpmnElement="Flow_T03">
+        <di:waypoint x="580" y="435" />
+        <di:waypoint x="640" y="435" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T04" bpmnElement="Flow_T04">
+        <di:waypoint x="665" y="410" />
+        <di:waypoint x="665" y="250" />
+        <di:waypoint x="700" y="250" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="606" y="383" width="49" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T05" bpmnElement="Flow_T05">
+        <di:waypoint x="690" y="435" />
+        <di:waypoint x="762" y="435" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="690" y="406" width="60" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T06" bpmnElement="Flow_T06">
+        <di:waypoint x="820" y="250" />
+        <di:waypoint x="920" y="250" />
+        <di:waypoint x="920" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T07" bpmnElement="Flow_T07">
+        <di:waypoint x="940" y="620" />
+        <di:waypoint x="980" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T11helper" bpmnElement="Flow_T11_helper">
+        <di:waypoint x="1160" y="620" />
+        <di:waypoint x="1100" y="620" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T08" bpmnElement="Flow_T08">
+        <di:waypoint x="1040" y="580" />
+        <di:waypoint x="1040" y="250" />
+        <di:waypoint x="1060" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T09" bpmnElement="Flow_T09">
+        <di:waypoint x="1180" y="250" />
+        <di:waypoint x="1320" y="250" />
+        <di:waypoint x="1320" y="765" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T15" bpmnElement="Flow_T15">
+        <di:waypoint x="1380" y="805" />
+        <di:waypoint x="1435" y="805" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T16a" bpmnElement="Flow_T16a">
+        <di:waypoint x="1460" y="780" />
+        <di:waypoint x="1460" y="330" />
+        <di:waypoint x="1660" y="330" />
+        <di:waypoint x="1660" y="290" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1391" y="733" width="60" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T11" bpmnElement="Flow_T11">
+        <di:waypoint x="1460" y="830" />
+        <di:waypoint x="1460" y="870" />
+        <di:waypoint x="1220" y="870" />
+        <di:waypoint x="1220" y="660" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1296" y="871" width="64" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T17" bpmnElement="Flow_T17">
+        <di:waypoint x="1520" y="290" />
+        <di:waypoint x="1520" y="950" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T14" bpmnElement="Flow_T14">
+        <di:waypoint x="1580" y="990" />
+        <di:waypoint x="1632" y="990" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T18" bpmnElement="Flow_T18">
+        <di:waypoint x="1720" y="250" />
+        <di:waypoint x="1760" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_T16" bpmnElement="Flow_T16">
+        <di:waypoint x="1840" y="250" />
+        <di:waypoint x="1892" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0r9un3u_di" bpmnElement="Flow_0r9un3u">
+        <di:waypoint x="1380" y="747" />
+        <di:waypoint x="1380" y="250" />
+        <di:waypoint x="1460" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_AutoTrigger" bpmnElement="TextAnn_AutoTrigger">
+        <dc:Bounds x="230" y="80" width="180" height="55" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_AutoLock" bpmnElement="TextAnn_AutoLock">
+        <dc:Bounds x="840" y="170" width="190" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DataOut_NotifPA" bpmnElement="DataOut_NotifPA">
+        <di:waypoint x="460" y="250" />
+        <di:waypoint x="502" y="250" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0pboqkt_di" bpmnElement="DataInputAssociation_0pboqkt">
+        <di:waypoint x="520" y="275" />
+        <di:waypoint x="520" y="395" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1mgzeqz_di" bpmnElement="DataInputAssociation_1mgzeqz">
+        <di:waypoint x="880" y="405" />
+        <di:waypoint x="880" y="580" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Request" bpmnElement="DataOut_Request">
+        <di:waypoint x="1060" y="580" />
+        <di:waypoint x="1060" y="411" />
+        <di:waypoint x="1102" y="411" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_18jmikw_di" bpmnElement="DataInputAssociation_18jmikw">
+        <di:waypoint x="1120" y="385" />
+        <di:waypoint x="1120" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Marketplace" bpmnElement="DataOut_Marketplace">
+        <di:waypoint x="820" y="280" />
+        <di:waypoint x="880" y="280" />
+        <di:waypoint x="880" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_AuditTrail" bpmnElement="DataOut_AuditTrail">
+        <di:waypoint x="1800" y="290" />
+        <di:waypoint x="1800" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Trigger" bpmnElement="Assoc_Ann_Trigger">
+        <di:waypoint x="349" y="135" />
+        <di:waypoint x="349" y="190" />
+        <di:waypoint x="284" y="239" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_AutoLock" bpmnElement="Assoc_Ann_AutoLock">
+        <di:waypoint x="935" y="220" />
+        <di:waypoint x="935" y="230" />
+        <di:waypoint x="820" y="242" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

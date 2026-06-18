@@ -1,0 +1,27 @@
+{
+  "components": [
+    {
+      "label": "Nama Mata Kuliah",
+      "type": "textfield",
+      "id": "Field_matakuliah",
+      "key": "matakuliah",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Kode Mata Kuliah",
+      "type": "textfield",
+      "id": "Field_kodeMK",
+      "key": "kodeMK",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_input_mk",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

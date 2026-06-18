@@ -1,0 +1,464 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="http://fik.prodi.bpm/penentuan-pengampu-as-is" exporter="Camunda Modeler" exporterVersion="5.44.0">
+  <bpmn:collaboration id="AsIs_penentuan_pengampu_MataKuliah">
+    <bpmn:participant id="Pool_Pengampu_AsIs" name="Penentuan Dosen Pengampu Mata Kuliah (AS-IS)" processRef="Proc_Pengampu_AsIs">
+      <bpmn:documentation>Proses penentuan dosen pengampu mata kuliah pada kondisi AS-IS. Plotting dilakukan secara manual di Excel oleh Korprodi dan Admin, dengan konfirmasi dosen via email atau pesan informal, dan persetujuan akhir Wadek 1 melalui pengiriman draft manual.</bpmn:documentation>
+    </bpmn:participant>
+    <bpmn:textAnnotation id="TextAnn_PlottingManual">
+      <bpmn:text>Plotting 100% manual di Excel — tidak ada validasi otomatis beban SKS atau konflik jadwal.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="TextAnn_Senin">
+      <bpmn:text>Blokir hari Senin untuk rapat dosen harus diingat manual saat plotting — tidak ada constraint otomatis.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Ann_PlotManual" sourceRef="TextAnn_PlottingManual" targetRef="T_PlottingManualExcel" />
+    <bpmn:association id="Assoc_Ann_Senin" sourceRef="TextAnn_Senin" targetRef="T_ResolusiJadwal" />
+  </bpmn:collaboration>
+  <bpmn:process id="Proc_Pengampu_AsIs" name="Penentuan Dosen Pengampu MK - AS-IS" isExecutable="true">
+    <bpmn:laneSet id="LS_Pengampu_AsIs">
+      <bpmn:lane id="Lane_Wadek_PG" name="Wakil Dekan 1 (Wadek 1)">
+        <bpmn:documentation>Wadek 1 menerima draft plotting melalui email atau dokumen fisik, mereview, dan memberikan persetujuan atau catatan revisi secara informal.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_WadekReviewPlotting</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Dosen_PG" name="Dosen">
+        <bpmn:documentation>Dosen mengkonfirmasi kesediaan mengajar melalui email atau pesan informal. Tidak ada sistem formal untuk mengekspresikan ketersediaan atau menolak penugasan.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_DosenKonfirmasiKesediaan</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_DosenBersedia</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_AdminMikmas_PG" name="Admin Prodi (Mikmas)">
+        <bpmn:documentation>Mikmas bertugas merekap data dosen (peminatan, sertifikasi, beban SKS saat ini) dan menginput data akhir pengampu ke SIAKAD setelah plotting disahkan.</bpmn:documentation>
+        <bpmn:flowNodeRef>T_MikmasRekap</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_MikmsCekBebanSKS</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>EE_PlottingDisahkan</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_MikmasInputSIAKAD</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Korprodi_PG" name="Koordinator Program Studi (Korprodi)">
+        <bpmn:documentation>Korprodi memimpin proses penentuan pengampu: menyusun daftar MK, mereview track record dosen secara manual, melakukan plotting di Excel, dan mengkoordinasikan seluruh proses hingga mendapat pengesahan Wadek.</bpmn:documentation>
+        <bpmn:flowNodeRef>SE_PersiapanSemester</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_SusunDaftarMK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ReviewTrackRecord</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_PlottingManualExcel</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_AdaBentrok</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_FinalisiirPlotting</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_KirimDraftWadek</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>GW_WadekApprove</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_ResolusiJadwal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_RevisiPlotting</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="SE_PersiapanSemester" name="Persiapan Semester&#10;Baru Dimulai">
+      <bpmn:documentation>Trigger awal: periode persiapan semester baru dimulai. Proses ini idealnya dimulai 1-2 bulan sebelum semester berjalan tetapi sering terlambat karena tidak ada jadwal otomatis.</bpmn:documentation>
+      <bpmn:outgoing>F_PG_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="T_SusunDaftarMK" name="Susun Daftar Mata Kuliah&#10;yang Ditawarkan&#10;Semester Ini">
+      <bpmn:documentation>Korprodi menyusun daftar mata kuliah yang akan ditawarkan pada semester mendatang berdasarkan kurikulum aktif dan kebutuhan program studi.</bpmn:documentation>
+      <bpmn:incoming>F_PG_01</bpmn:incoming>
+      <bpmn:outgoing>F_PG_02</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_MikmasRekap" name="Mikmas Rekap Data Dosen&#10;(Peminatan, Sertifikasi,&#10;Beban SKS Sekarang)">
+      <bpmn:documentation>Mikmas merekap data dosen secara manual: peminatan akademik, sertifikasi yang dimiliki, dan beban SKS semester berjalan. Data dikumpulkan dari berbagai sumber terpisah.</bpmn:documentation>
+      <bpmn:incoming>F_PG_02</bpmn:incoming>
+      <bpmn:outgoing>F_PG_03</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_RekapDosen">
+        <bpmn:targetRef>DataRef_DataDosenExcel</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_ReviewTrackRecord" name="Korprodi Review&#10;Track Record Pengajaran&#10;Dosen (Manual)">
+      <bpmn:documentation>Korprodi mereview rekam jejak pengajaran setiap dosen secara manual untuk menentukan kesesuaian penugasan. Tidak ada sistem analitik yang membantu proses ini.</bpmn:documentation>
+      <bpmn:incoming>F_PG_03</bpmn:incoming>
+      <bpmn:outgoing>F_PG_04</bpmn:outgoing>
+      <bpmn:property id="Property_0kut8s3" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0s4h4fz">
+        <bpmn:sourceRef>DataRef_DataDosenExcel</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0kut8s3</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_PlottingManualExcel" name="Plotting Dosen ke MK&#10;Secara Manual&#10;di Excel">
+      <bpmn:documentation>Korprodi melakukan plotting dosen ke mata kuliah secara manual di spreadsheet Excel. Proses ini memakan waktu lama dan rentan terhadap kesalahan serta konflik jadwal.</bpmn:documentation>
+      <bpmn:incoming>F_PG_04</bpmn:incoming>
+      <bpmn:outgoing>F_PG_05</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Plotting">
+        <bpmn:targetRef>DataRef_PlottingExcel</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_MikmsCekBebanSKS" name="Mikmas Cek Beban SKS&#10;Tiap Dosen (Maks 15-16&#10;SKS, Maks 4-5 MK)">
+      <bpmn:documentation>Mikmas memverifikasi beban SKS setiap dosen hasil plotting: tidak boleh melebihi 15-16 SKS per semester dan maksimal 4-5 mata kuliah. Pengecekan dilakukan secara manual.</bpmn:documentation>
+      <bpmn:incoming>F_PG_05</bpmn:incoming>
+      <bpmn:outgoing>F_PG_06</bpmn:outgoing>
+      <bpmn:property id="Property_14anxx6" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_15uo9zc">
+        <bpmn:sourceRef>DataRef_DataDosenExcel</bpmn:sourceRef>
+        <bpmn:targetRef>Property_14anxx6</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_AdaBentrok" name="Ada Bentrok&#10;Jadwal / Overload&#10;SKS?">
+      <bpmn:documentation>Keputusan: apakah ada bentrok jadwal atau dosen yang overload SKS? Jika ya, perlu resolusi manual sebelum melanjutkan ke konfirmasi dosen.</bpmn:documentation>
+      <bpmn:incoming>F_PG_06</bpmn:incoming>
+      <bpmn:outgoing>F_PG_07_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_PG_07_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_DosenKonfirmasiKesediaan" name="Dosen Konfirmasi&#10;Kesediaan Mengajar&#10;(via Email / Pesan)">
+      <bpmn:documentation>Dosen mengkonfirmasi kesediaan mengajar melalui email atau pesan informal. Tidak ada batas waktu respons yang ditetapkan, menyebabkan ketidakpastian dalam penyusunan jadwal.</bpmn:documentation>
+      <bpmn:incoming>F_PG_07_tidak</bpmn:incoming>
+      <bpmn:incoming>F_PG_08</bpmn:incoming>
+      <bpmn:outgoing>F_PG_09</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_DosenBersedia" name="Semua Dosen&#10;Bersedia?">
+      <bpmn:documentation>Keputusan: apakah semua dosen yang di-plot bersedia? Jika ada yang tidak bersedia, Korprodi harus melakukan plotting ulang untuk mencari pengganti.</bpmn:documentation>
+      <bpmn:incoming>F_PG_09</bpmn:incoming>
+      <bpmn:outgoing>F_PG_10_ya</bpmn:outgoing>
+      <bpmn:outgoing>F_PG_10_tidak</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_FinalisiirPlotting" name="Finalisasi Plotting&#10;di Excel (File Final)">
+      <bpmn:documentation>Korprodi memfinalisasi file Excel plotting setelah semua konfirmasi diterima. File ini menjadi dokumen referensi utama meskipun rentan terhadap perubahan tidak terdokumentasi.</bpmn:documentation>
+      <bpmn:incoming>F_PG_10_ya</bpmn:incoming>
+      <bpmn:outgoing>F_PG_11</bpmn:outgoing>
+      <bpmn:property id="Property_0ie5mf0" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_07zrpy9">
+        <bpmn:sourceRef>DataRef_PlottingExcel</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0ie5mf0</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:manualTask id="T_KirimDraftWadek" name="Kirim Draft Plotting&#10;ke Wadek 1&#10;(Email/Manual)">
+      <bpmn:documentation>Korprodi mengirim draft plotting ke Wadek 1 melalui email atau dokumen fisik untuk mendapat persetujuan akhir. Tidak ada sistem tracking status pengiriman.</bpmn:documentation>
+      <bpmn:incoming>F_PG_11</bpmn:incoming>
+      <bpmn:outgoing>F_PG_12</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_DraftWadek">
+        <bpmn:targetRef>DataRef_DraftWadek</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:manualTask>
+    <bpmn:userTask id="T_WadekReviewPlotting" name="Wadek 1 Review&#10;dan Approve/Reject&#10;Plotting">
+      <bpmn:documentation>Wadek 1 mereview draft plotting secara manual dan memberikan persetujuan atau catatan revisi. Proses ini tidak terstruktur dan waktu respons bervariasi.</bpmn:documentation>
+      <bpmn:incoming>F_PG_12</bpmn:incoming>
+      <bpmn:outgoing>F_PG_approve</bpmn:outgoing>
+      <bpmn:property id="Property_1vsu4ec" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0l9b2lx">
+        <bpmn:sourceRef>DataRef_DraftWadek</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1vsu4ec</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:dataObjectReference id="DataRef_DataDosenExcel" name="Rekap Data Dosen (Excel)" dataObjectRef="DataObject_DataDosenExcel">
+      <bpmn:documentation>Data peminatan, sertifikasi, dan beban SKS dosen dikumpulkan manual oleh Mikmas dari berbagai sumber. Menjadi rujukan plotting meski sering tidak up-to-date.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DataDosenExcel" />
+    <bpmn:dataObjectReference id="DataRef_PlottingExcel" name="Dokumen Plotting Pengampu (Excel)" dataObjectRef="DataObject_PlottingExcel">
+      <bpmn:documentation>File Excel hasil plotting Korprodi. Bersifat statis, tidak terhubung ke sistem lain secara otomatis. Rentan perubahan tidak terdokumentasi.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_PlottingExcel" />
+    <bpmn:endEvent id="EE_PlottingDisahkan" name="Plotting Pengampu&#10;MK Disahkan">
+      <bpmn:documentation>Proses selesai. Plotting pengampu MK telah disahkan dan data tersimpan di SIAKAD.</bpmn:documentation>
+      <bpmn:incoming>F_PG_13</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataObjectReference id="DataRef_DraftWadek" name="Draft Plotting (untuk Wadek 1)" dataObjectRef="DataObject_DraftWadek">
+      <bpmn:documentation>Dokumen draft dikirim ke Wadek melalui email atau fisik. Tidak ada sistem tracking status pengiriman atau versi dokumen.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_DraftWadek" />
+    <bpmn:exclusiveGateway id="GW_WadekApprove" name="Wadek&#10;Approve?">
+      <bpmn:documentation>Keputusan Wadek: approve atau minta revisi? Jika revisi, Korprodi harus mengulang proses plotting dan konfirmasi ulang.</bpmn:documentation>
+      <bpmn:incoming>F_PG_approve</bpmn:incoming>
+      <bpmn:outgoing>F_PG_13</bpmn:outgoing>
+      <bpmn:outgoing>F_PG_revisi</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="T_ResolusiJadwal" name="Resolusi Bentrok:&#10;Negosiasi Ulang&#10;dengan Dosen Terkait">
+      <bpmn:documentation>Korprodi melakukan negosiasi manual dengan dosen terkait untuk menyelesaikan bentrok jadwal atau overload. Proses ini tidak terstruktur dan bergantung pada ketersediaan dosen.</bpmn:documentation>
+      <bpmn:incoming>F_PG_07_ya</bpmn:incoming>
+      <bpmn:outgoing>F_PG_08</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="F_PG_01" sourceRef="SE_PersiapanSemester" targetRef="T_SusunDaftarMK" />
+    <bpmn:sequenceFlow id="F_PG_02" sourceRef="T_SusunDaftarMK" targetRef="T_MikmasRekap" />
+    <bpmn:sequenceFlow id="F_PG_03" sourceRef="T_MikmasRekap" targetRef="T_ReviewTrackRecord" />
+    <bpmn:sequenceFlow id="F_PG_04" sourceRef="T_ReviewTrackRecord" targetRef="T_PlottingManualExcel" />
+    <bpmn:sequenceFlow id="F_PG_10_tidak" name="Tidak (Cari&#10;Pengganti)" sourceRef="GW_DosenBersedia" targetRef="T_PlottingManualExcel" />
+    <bpmn:sequenceFlow id="F_PG_05" sourceRef="T_PlottingManualExcel" targetRef="T_MikmsCekBebanSKS" />
+    <bpmn:sequenceFlow id="F_PG_06" sourceRef="T_MikmsCekBebanSKS" targetRef="GW_AdaBentrok" />
+    <bpmn:sequenceFlow id="F_PG_07_ya" name="Ya, Ada Bentrok" sourceRef="GW_AdaBentrok" targetRef="T_ResolusiJadwal" />
+    <bpmn:sequenceFlow id="F_PG_07_tidak" name="Tidak" sourceRef="GW_AdaBentrok" targetRef="T_DosenKonfirmasiKesediaan" />
+    <bpmn:sequenceFlow id="F_PG_08" sourceRef="T_ResolusiJadwal" targetRef="T_DosenKonfirmasiKesediaan" />
+    <bpmn:sequenceFlow id="F_PG_09" sourceRef="T_DosenKonfirmasiKesediaan" targetRef="GW_DosenBersedia" />
+    <bpmn:sequenceFlow id="F_PG_10_ya" name="Ya" sourceRef="GW_DosenBersedia" targetRef="T_FinalisiirPlotting" />
+    <bpmn:sequenceFlow id="F_PG_11" sourceRef="T_FinalisiirPlotting" targetRef="T_KirimDraftWadek" />
+    <bpmn:sequenceFlow id="F_PG_12" sourceRef="T_KirimDraftWadek" targetRef="T_WadekReviewPlotting" />
+    <bpmn:sequenceFlow id="F_PG_approve" sourceRef="T_WadekReviewPlotting" targetRef="GW_WadekApprove" />
+    <bpmn:sequenceFlow id="F_PG_revisi" name="Reject / Revisi" sourceRef="GW_WadekApprove" targetRef="T_RevisiPlotting" />
+    <bpmn:sequenceFlow id="F_PG_13a" sourceRef="T_RevisiPlotting" targetRef="T_MikmasInputSIAKAD" />
+    <bpmn:sequenceFlow id="F_PG_13_end" sourceRef="T_MikmasInputSIAKAD" targetRef="EE_PlottingDisahkan" />
+    <bpmn:sequenceFlow id="F_PG_13" name="Approve" sourceRef="GW_WadekApprove" targetRef="T_MikmasInputSIAKAD" />
+    <bpmn:userTask id="T_RevisiPlotting" name="Korprodi Revisi&#10;Plotting sesuai&#10;Catatan Wadek">
+      <bpmn:documentation>Korprodi merevisi plotting sesuai catatan Wadek dan mengirim ulang draft yang telah diperbarui untuk persetujuan.</bpmn:documentation>
+      <bpmn:incoming>F_PG_revisi</bpmn:incoming>
+      <bpmn:outgoing>F_PG_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_MikmasInputSIAKAD" name="Mikmas Input Data&#10;Pengampu ke SIAKAD&#10;/ Sistem">
+      <bpmn:documentation>Setelah plotting disahkan, Mikmas menginput data pengampu mata kuliah ke SIAKAD secara manual. Proses ini rentan terhadap kesalahan pengetikan.</bpmn:documentation>
+      <bpmn:incoming>F_PG_13a</bpmn:incoming>
+      <bpmn:outgoing>F_PG_13</bpmn:outgoing>
+    </bpmn:userTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_Pengampu_AsIs">
+    <bpmndi:BPMNPlane id="Plane_Pengampu_AsIs" bpmnElement="AsIs_penentuan_pengampu_MataKuliah">
+      <bpmndi:BPMNShape id="S_Pool_PG_AsIs" bpmnElement="Pool_Pengampu_AsIs" isHorizontal="true">
+        <dc:Bounds x="140" y="140" width="1728" height="740" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Korprodi_PG" bpmnElement="Lane_Korprodi_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="140" width="1698" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Admin_PG" bpmnElement="Lane_AdminMikmas_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="325" width="1698" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Dosen_PG" bpmnElement="Lane_Dosen_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="510" width="1698" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Lane_Wadek_PG" bpmnElement="Lane_Wadek_PG" isHorizontal="true">
+        <dc:Bounds x="170" y="695" width="1698" height="185" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_SE_PG" bpmnElement="SE_PersiapanSemester">
+        <dc:Bounds x="222" y="212" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="209" y="255" width="63" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_SusunMK" bpmnElement="T_SusunDaftarMK">
+        <dc:Bounds x="310" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_MikmasRekap" bpmnElement="T_MikmasRekap">
+        <dc:Bounds x="460" y="375" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_ReviewTrack" bpmnElement="T_ReviewTrackRecord">
+        <dc:Bounds x="630" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Plotting" bpmnElement="T_PlottingManualExcel">
+        <dc:Bounds x="800" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_CekBeban" bpmnElement="T_MikmsCekBebanSKS">
+        <dc:Bounds x="800" y="375" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_Bentrok" bpmnElement="GW_AdaBentrok" isMarkerVisible="true">
+        <dc:Bounds x="995" y="205" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="975" y="155" width="89" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_DosenKonfirm" bpmnElement="T_DosenKonfirmasiKesediaan">
+        <dc:Bounds x="1080" y="560" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_DosenBersedia" bpmnElement="GW_DosenBersedia" isMarkerVisible="true">
+        <dc:Bounds x="1255" y="575" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1245" y="632" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Finalisasi" bpmnElement="T_FinalisiirPlotting">
+        <dc:Bounds x="1250" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_KirimWadek" bpmnElement="T_KirimDraftWadek">
+        <dc:Bounds x="1420" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_WadekReview" bpmnElement="T_WadekReviewPlotting">
+        <dc:Bounds x="1420" y="745" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DataDosenExcel" bpmnElement="DataRef_DataDosenExcel">
+        <dc:Bounds x="672" y="390" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="655" y="446" width="70" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_PlottingExcel" bpmnElement="DataRef_PlottingExcel">
+        <dc:Bounds x="1162" y="355" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1137" y="411" width="87" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_EE_PG" bpmnElement="EE_PlottingDisahkan">
+        <dc:Bounds x="1802" y="397" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1788" y="440" width="66" height="40" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_DataRef_DraftWadek" bpmnElement="DataRef_DraftWadek">
+        <dc:Bounds x="1372" y="545" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1350" y="601" width="81" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_Wadek" bpmnElement="GW_WadekApprove" isMarkerVisible="true">
+        <dc:Bounds x="1585" y="205" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1645" y="216.5" width="48" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Resolusi" bpmnElement="T_ResolusiJadwal">
+        <dc:Bounds x="1110" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_Revisi" bpmnElement="T_RevisiPlotting">
+        <dc:Bounds x="1720" y="150" width="120" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_MikmasInput" bpmnElement="T_MikmasInputSIAKAD">
+        <dc:Bounds x="1640" y="375" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_PG_01" bpmnElement="F_PG_01">
+        <di:waypoint x="258" y="230" />
+        <di:waypoint x="310" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_02" bpmnElement="F_PG_02">
+        <di:waypoint x="430" y="230" />
+        <di:waypoint x="440" y="230" />
+        <di:waypoint x="440" y="415" />
+        <di:waypoint x="460" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_03" bpmnElement="F_PG_03">
+        <di:waypoint x="580" y="415" />
+        <di:waypoint x="600" y="415" />
+        <di:waypoint x="600" y="230" />
+        <di:waypoint x="630" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_04" bpmnElement="F_PG_04">
+        <di:waypoint x="750" y="230" />
+        <di:waypoint x="800" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_10tidak" bpmnElement="F_PG_10_tidak">
+        <di:waypoint x="1280" y="575" />
+        <di:waypoint x="1280" y="310" />
+        <di:waypoint x="890" y="310" />
+        <di:waypoint x="890" y="270" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1213" y="536" width="54" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_05" bpmnElement="F_PG_05">
+        <di:waypoint x="860" y="270" />
+        <di:waypoint x="860" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_06" bpmnElement="F_PG_06">
+        <di:waypoint x="920" y="415" />
+        <di:waypoint x="960" y="415" />
+        <di:waypoint x="960" y="230" />
+        <di:waypoint x="995" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_07ya" bpmnElement="F_PG_07_ya">
+        <di:waypoint x="1045" y="230" />
+        <di:waypoint x="1110" y="230" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1040" y="213" width="79" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_07tidak" bpmnElement="F_PG_07_tidak">
+        <di:waypoint x="1020" y="255" />
+        <di:waypoint x="1020" y="600" />
+        <di:waypoint x="1080" y="600" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1027" y="263" width="27" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_08" bpmnElement="F_PG_08">
+        <di:waypoint x="1170" y="270" />
+        <di:waypoint x="1170" y="290" />
+        <di:waypoint x="1140" y="290" />
+        <di:waypoint x="1140" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_09" bpmnElement="F_PG_09">
+        <di:waypoint x="1200" y="600" />
+        <di:waypoint x="1255" y="600" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_10ya" bpmnElement="F_PG_10_ya">
+        <di:waypoint x="1305" y="600" />
+        <di:waypoint x="1320" y="600" />
+        <di:waypoint x="1320" y="270" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1303" y="483" width="13" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_11" bpmnElement="F_PG_11">
+        <di:waypoint x="1370" y="230" />
+        <di:waypoint x="1420" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_12" bpmnElement="F_PG_12">
+        <di:waypoint x="1480" y="270" />
+        <di:waypoint x="1480" y="300" />
+        <di:waypoint x="1340" y="300" />
+        <di:waypoint x="1340" y="785" />
+        <di:waypoint x="1420" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_approve_flow" bpmnElement="F_PG_approve">
+        <di:waypoint x="1540" y="785" />
+        <di:waypoint x="1560" y="785" />
+        <di:waypoint x="1560" y="230" />
+        <di:waypoint x="1585" y="230" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_revisi" bpmnElement="F_PG_revisi">
+        <di:waypoint x="1610" y="205" />
+        <di:waypoint x="1610" y="180" />
+        <di:waypoint x="1720" y="180" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1614" y="163" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_13a" bpmnElement="F_PG_13a">
+        <di:waypoint x="1780" y="230" />
+        <di:waypoint x="1780" y="308" />
+        <di:waypoint x="1700" y="308" />
+        <di:waypoint x="1700" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_13end" bpmnElement="F_PG_13_end">
+        <di:waypoint x="1760" y="415" />
+        <di:waypoint x="1802" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_PG_13" bpmnElement="F_PG_13">
+        <di:waypoint x="1610" y="255" />
+        <di:waypoint x="1610" y="415" />
+        <di:waypoint x="1640" y="415" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1619" y="273" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_TextAnn_PlottingManual" bpmnElement="TextAnn_PlottingManual">
+        <dc:Bounds x="700" y="80" width="260" height="50" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_Senin" bpmnElement="TextAnn_Senin">
+        <dc:Bounds x="1010" y="77" width="260" height="56" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_DataOut_RekapDosen" bpmnElement="DataOut_RekapDosen">
+        <di:waypoint x="580" y="415" />
+        <di:waypoint x="672" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0s4h4fz_di" bpmnElement="DataInputAssociation_0s4h4fz">
+        <di:waypoint x="690" y="390" />
+        <di:waypoint x="690" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Plotting" bpmnElement="DataOut_Plotting">
+        <di:waypoint x="920" y="232" />
+        <di:waypoint x="940" y="233" />
+        <di:waypoint x="940" y="380" />
+        <di:waypoint x="1162" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_15uo9zc_di" bpmnElement="DataInputAssociation_15uo9zc">
+        <di:waypoint x="708" y="415" />
+        <di:waypoint x="800" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_07zrpy9_di" bpmnElement="DataInputAssociation_07zrpy9">
+        <di:waypoint x="1198" y="380" />
+        <di:waypoint x="1270" y="380" />
+        <di:waypoint x="1270" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_DraftWadek" bpmnElement="DataOut_DraftWadek">
+        <di:waypoint x="1420" y="250" />
+        <di:waypoint x="1390" y="250" />
+        <di:waypoint x="1390" y="545" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0l9b2lx_di" bpmnElement="DataInputAssociation_0l9b2lx">
+        <di:waypoint x="1408" y="570" />
+        <di:waypoint x="1480" y="570" />
+        <di:waypoint x="1480" y="745" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_PlotManual" bpmnElement="Assoc_Ann_PlotManual">
+        <di:waypoint x="836" y="130" />
+        <di:waypoint x="850" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Senin" bpmnElement="Assoc_Ann_Senin">
+        <di:waypoint x="1147" y="133" />
+        <di:waypoint x="1160" y="190" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

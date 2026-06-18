@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "label": "Dosen yang Direkomendasikan",
+      "type": "textfield",
+      "id": "Field_dosenDiusulkan",
+      "key": "dosenDiusulkan",
+      "readonly": true
+    },
+    {
+      "label": "Apakah Anda menyetujui draft plotting ini?",
+      "type": "checkbox",
+      "id": "Field_isKorprodiApprove",
+      "key": "isKorprodiApprove"
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_review_draft",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

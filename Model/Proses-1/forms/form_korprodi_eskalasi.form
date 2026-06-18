@@ -1,0 +1,25 @@
+{
+  "components": [
+    {
+      "label": "Nama Mata Kuliah",
+      "type": "textfield",
+      "id": "Field_matakuliah",
+      "key": "matakuliah",
+      "readonly": true
+    },
+    {
+      "label": "Dosen Pengganti (Akibat Gagal SLA / Dosen Menolak)",
+      "type": "textfield",
+      "id": "Field_dosenDiusulkan",
+      "key": "dosenDiusulkan",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_eskalasi",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "label": "Mata Kuliah yang Ditugaskan",
+      "type": "textfield",
+      "id": "Field_matakuliah",
+      "key": "matakuliah",
+      "readonly": true
+    },
+    {
+      "label": "Saya menyatakan BERSEDIA mengajar mata kuliah ini",
+      "type": "checkbox",
+      "id": "Field_isDosenSetuju",
+      "key": "isDosenSetuju"
+    }
+  ],
+  "type": "default",
+  "id": "form_dosen_konfirmasi",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}
