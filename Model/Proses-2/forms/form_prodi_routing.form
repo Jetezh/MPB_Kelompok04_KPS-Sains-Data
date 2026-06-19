@@ -1,0 +1,25 @@
+{
+  "components": [
+    {
+      "label": "Dosen Sebelumnya (Gagal SLA / Ditolak)",
+      "type": "textfield",
+      "id": "F_dosenLama",
+      "key": "dosenUsulan",
+      "readonly": true
+    },
+    {
+      "label": "Nama Dosen Pembimbing Baru yang Ditunjuk",
+      "type": "textfield",
+      "id": "F_dosenBaru",
+      "key": "dosenBaru",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_prodi_routing",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

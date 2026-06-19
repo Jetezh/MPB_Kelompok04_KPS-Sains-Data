@@ -1,0 +1,45 @@
+{
+  "components": [
+    {
+      "label": "Nama Lengkap Mahasiswa",
+      "type": "textfield",
+      "id": "F_nama",
+      "key": "namaMahasiswa",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "NIM",
+      "type": "textfield",
+      "id": "F_nim",
+      "key": "nimMahasiswa",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Total SKS yang Telah Ditempuh",
+      "type": "number",
+      "id": "F_sks",
+      "key": "totalSKS",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Nama Dosen Pembimbing yang Diusulkan",
+      "type": "textfield",
+      "id": "F_dosen",
+      "key": "dosenUsulan",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_start_pembimbing_ta",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

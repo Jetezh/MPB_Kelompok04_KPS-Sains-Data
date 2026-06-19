@@ -1,0 +1,15 @@
+{
+  "components": [
+    {
+      "label": "Saya menyatakan konten RPS ini sudah terisi lengkap sesuai aturan",
+      "type": "checkbox",
+      "id": "F_konfirmasi",
+      "key": "konfirmasiSubmit"
+    }
+  ],
+  "type": "default",
+  "id": "form_dosen_submit_rps",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

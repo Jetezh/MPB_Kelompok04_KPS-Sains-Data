@@ -1,0 +1,22 @@
+{
+  "components": [
+    {
+      "label": "Tautan Dokumen RPS",
+      "type": "textfield",
+      "id": "F_link",
+      "key": "linkDraftRPS",
+      "readonly": true
+    },
+    {
+      "label": "Apakah Substansi & Sub-CPMK Sesuai Standar Mutu? (Centang jika Ya)",
+      "type": "checkbox",
+      "id": "F_l2",
+      "key": "isL2Approved"
+    }
+  ],
+  "type": "default",
+  "id": "form_gkm_review_l2",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

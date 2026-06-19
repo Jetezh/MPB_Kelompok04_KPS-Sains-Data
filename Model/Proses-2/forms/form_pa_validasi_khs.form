@@ -1,0 +1,29 @@
+{
+  "components": [
+    {
+      "label": "Nama Mahasiswa",
+      "type": "textfield",
+      "id": "F_nama",
+      "key": "namaMahasiswa",
+      "readonly": true
+    },
+    {
+      "label": "Total SKS",
+      "type": "number",
+      "id": "F_sks",
+      "key": "totalSKS",
+      "readonly": true
+    },
+    {
+      "label": "Apakah data KHS & SKS mahasiswa ini VALID? (Centang jika Ya)",
+      "type": "checkbox",
+      "id": "F_valid",
+      "key": "isKHSValid"
+    }
+  ],
+  "type": "default",
+  "id": "form_pa_validasi_khs",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

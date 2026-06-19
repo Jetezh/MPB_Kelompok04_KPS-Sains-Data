@@ -1,0 +1,32 @@
+{
+  "components": [
+    {
+      "label": "Catatan Koreksi Korprodi",
+      "type": "textfield",
+      "id": "F_cat1",
+      "key": "catatanRevisiL1",
+      "readonly": true
+    },
+    {
+      "label": "Catatan Koreksi GKM",
+      "type": "textfield",
+      "id": "F_cat2",
+      "key": "catatanRevisiL2",
+      "readonly": true
+    },
+    {
+      "label": "Perbarui URL Tautan Berkas Hasil Revisi",
+      "type": "textfield",
+      "id": "F_link",
+      "key": "linkDraftRPS",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_dosen_revisi_rps",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

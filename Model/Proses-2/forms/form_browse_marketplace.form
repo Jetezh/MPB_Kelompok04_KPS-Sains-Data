@@ -1,0 +1,16 @@
+{
+  "components": [
+    {
+      "label": "Sisa Slot Kuota Dosen Usulan",
+      "type": "number",
+      "id": "F_slot",
+      "key": "slotSisaDosen",
+      "readonly": true
+    }
+  ],
+  "type": "default",
+  "id": "form_browse_marketplace",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

@@ -1,0 +1,27 @@
+{
+  "components": [
+    {
+      "label": "Judul Tugas Akhir yang Diajukan",
+      "type": "textfield",
+      "id": "F_judul",
+      "key": "judulTA",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Ringkasan/Abstrak Proposal",
+      "type": "textarea",
+      "id": "F_abstrak",
+      "key": "abstrakTA",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_submit_request_ta",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

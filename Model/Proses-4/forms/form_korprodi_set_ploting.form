@@ -1,0 +1,27 @@
+{
+  "components": [
+    {
+      "label": "Nama Mata Kuliah",
+      "type": "textfield",
+      "id": "F_mk",
+      "key": "mataKuliahRPS",
+      "validate": {
+        "required": true
+      }
+    },
+    {
+      "label": "Nama Dosen Koordinator Utama",
+      "type": "textfield",
+      "id": "F_dosen",
+      "key": "dosenKoor",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_korprodi_set_ploting",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

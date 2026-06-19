@@ -1,0 +1,28 @@
+{
+  "components": [
+    {
+      "label": "Judul TA yang Diajukan",
+      "type": "textfield",
+      "id": "F_judul",
+      "key": "judulTA",
+      "readonly": true
+    },
+    {
+      "label": "Apakah Anda MENERIMA pengajuan bimbingan? (Centang jika SETUJU)",
+      "type": "checkbox",
+      "id": "F_approve",
+      "key": "isApprovedPembimbing"
+    },
+    {
+      "label": "Catatan / Alasan (Opsional)",
+      "type": "textarea",
+      "id": "F_catatan",
+      "key": "catatanPembimbing"
+    }
+  ],
+  "type": "default",
+  "id": "form_pembimbing_review",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

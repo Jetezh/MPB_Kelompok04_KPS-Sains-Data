@@ -1,0 +1,18 @@
+{
+  "components": [
+    {
+      "label": "Nama Dosen Pembimbing Alternatif yang Dipilih",
+      "type": "textfield",
+      "id": "F_dosen",
+      "key": "dosenUsulan",
+      "validate": {
+        "required": true
+      }
+    }
+  ],
+  "type": "default",
+  "id": "form_cari_pembimbing_lain",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}
