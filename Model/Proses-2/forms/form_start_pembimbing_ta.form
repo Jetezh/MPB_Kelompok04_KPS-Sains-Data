@@ -5,36 +5,33 @@
       "type": "textfield",
       "id": "F_nama",
       "key": "namaMahasiswa",
-      "validate": {
-        "required": true
-      }
+      "validate": { "required": true }
     },
     {
       "label": "NIM",
       "type": "textfield",
       "id": "F_nim",
       "key": "nimMahasiswa",
-      "validate": {
-        "required": true
-      }
+      "validate": { "required": true }
     },
     {
       "label": "Total SKS yang Telah Ditempuh",
       "type": "number",
       "id": "F_sks",
       "key": "totalSKS",
-      "validate": {
-        "required": true
-      }
+      "validate": { "required": true }
     },
     {
-      "label": "Nama Dosen Pembimbing yang Diusulkan",
-      "type": "textfield",
-      "id": "F_dosen",
-      "key": "dosenUsulan",
-      "validate": {
-        "required": true
-      }
+      "label": "Apakah UKT Lunas? (Centang jika Ya)",
+      "type": "checkbox",
+      "id": "F_ukt",
+      "key": "isUKTLunas"
+    },
+    {
+      "label": "Apakah ada MK Prasyarat TA yang Belum Lulus? (Centang jika ADA)",
+      "type": "checkbox",
+      "id": "F_mk",
+      "key": "adaMKBelumLulus"
     }
   ],
   "type": "default",

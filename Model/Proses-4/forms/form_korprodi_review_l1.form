@@ -12,6 +12,12 @@
       "type": "checkbox",
       "id": "F_l1",
       "key": "isL1Approved"
+    },
+    {
+      "label": "Catatan Revisi Struktur Dokumen (wajib isi jika tidak approve)",
+      "type": "textarea",
+      "id": "F_catatan",
+      "key": "catatanRevisiL1"
     }
   ],
   "type": "default",

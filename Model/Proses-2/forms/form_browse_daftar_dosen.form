@@ -1,0 +1,23 @@
+{
+  "components": [
+    {
+      "label": "Sisa Slot Kuota Dosen",
+      "type": "number",
+      "id": "F_slot",
+      "key": "slotSisaDosen",
+      "readonly": true
+    },
+    {
+      "label": "Pilih Dosen Pembimbing yang Diinginkan",
+      "type": "textfield",
+      "id": "F_dosen",
+      "key": "dosenUsulan",
+      "validate": { "required": true }
+    }
+  ],
+  "type": "default",
+  "id": "form_browse_daftar_dosen",
+  "executionPlatform": "Camunda Platform",
+  "executionPlatformVersion": "7.20",
+  "schemaVersion": 19
+}

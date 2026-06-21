@@ -12,6 +12,12 @@
       "type": "checkbox",
       "id": "F_l2",
       "key": "isL2Approved"
+    },
+    {
+      "label": "Catatan Koreksi Substansi CPMK (wajib isi jika tidak approve)",
+      "type": "textarea",
+      "id": "F_catatan",
+      "key": "catatanRevisiL2"
     }
   ],
   "type": "default",

@@ -12,6 +12,12 @@
       "type": "checkbox",
       "id": "F_l3",
       "key": "isL3Approved"
+    },
+    {
+      "label": "Catatan Revisi Final (wajib isi jika tidak approve)",
+      "type": "textarea",
+      "id": "F_catatan",
+      "key": "catatanRevisiL3"
     }
   ],
   "type": "default",

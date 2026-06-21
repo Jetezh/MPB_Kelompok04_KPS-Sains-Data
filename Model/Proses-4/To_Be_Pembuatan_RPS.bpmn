@@ -16,9 +16,8 @@
       <bpmn:documentation id="documentation_HpBopA" />
       <bpmn:text>RPS dipublikasikan ke dashboard mahasiswa sejak hari pertama semester — memenuhi hak mahasiswa.</bpmn:text>
     </bpmn:textAnnotation>
-    <bpmn:association id="Assoc_Ann_TimerEsk" sourceRef="TextAnn_TimerEskalasi" targetRef="T_BoundaryTimerDosen" />
-    <bpmn:association id="Assoc_Ann_AutoRoute" sourceRef="TextAnn_AutoRoute" targetRef="T_AutoRoute_L1" />
     <bpmn:association id="Assoc_Ann_Publish" sourceRef="TextAnn_Publish" targetRef="T_PublishRPS" />
+    <bpmn:association id="Assoc_Ann_AutoRoute" sourceRef="TextAnn_AutoRoute" targetRef="T_AutoRoute_L1" />
   </bpmn:collaboration>
   <bpmn:process id="Proc_RPS_ToBe" name="RPS SIMPEL - TO-BE (Enhanced)" processType="Private" isExecutable="true" ns1:historyTimeToLive="30">
     <bpmn:laneSet id="LS_RPS_ToBe">
@@ -31,12 +30,10 @@
         <bpmn:documentation>GKM menerima routing otomatis dari sistem setelah Level 1 approve dan melakukan review substansi dengan mengisi catatan revisi digital.</bpmn:documentation>
         <bpmn:flowNodeRef>T_GKMReviewL2</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GW_L2_ToBe</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_GKMInputRevisiL2</bpmn:flowNodeRef>
       </bpmn:lane>
       <bpmn:lane id="Lane_DosenKoord_ToBe_RPS" name="Dosen Koordinator Mata Kuliah">
         <bpmn:documentation>Dosen Koordinator mengisi konten RPS di SIMPEL dan merespons catatan revisi. Terikat pada deadline yang didukung oleh sistem pengingat otomatis.</bpmn:documentation>
-        <bpmn:flowNodeRef>T_DosenInputSIMPEL</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_DosenSubmit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProc_PenyusunanDraft</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_BoundaryTimerDosen</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_DosenRevisiToBe</bpmn:flowNodeRef>
       </bpmn:lane>
@@ -45,20 +42,20 @@
         <bpmn:flowNodeRef>T_KorprodiReviewL1</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>GW_L1_ToBe</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_KorprodiSetPloting</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_KorprodiInputRevisiL1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_0ms578o</bpmn:flowNodeRef>
       </bpmn:lane>
       <bpmn:lane id="Lane_Sistem_RPS" name="SISTEM SIMPEL (Automated)">
         <bpmn:documentation>Lane sistem yang mengelola: timer terjadwal untuk memulai periode RPS, notifikasi deadline otomatis (H-7 dan H-3), eskalasi jika dosen terlambat, auto-routing ke setiap level reviewer, generasi PDF final, dan publikasi ke dashboard.</bpmn:documentation>
         <bpmn:flowNodeRef>SE_SistemMulaiRPS</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_AutoNotifPloting</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_EskalasiKorprodi</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_AutoNotifDeadline</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_AutoRoute_L1</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_AutoRoute_L2</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>T_AutoRoute_L3</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>EE_RPSPublished</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_PublishRPS</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>T_GeneratePDFFinal</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoRoute_L2</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoRoute_L1</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoNotifDeadline</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_EskalasiKorprodi</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>T_AutoRoute_L3</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
     <bpmn:startEvent id="SE_SistemMulaiRPS" name="Sistem Mulai&#10;Periode RPS&#10;(Timer Terjadwal)" ns1:formRef="form_start_rps" ns1:formRefBinding="latest">
@@ -87,7 +84,7 @@ var dosen = execution.getVariable('dosenKoor');
 
 JSON.stringify({
   "embeds": [{
-    "title": "烙 [LOG SISTEM]  PROSES 4 -&gt; Inisialisasi Periode RPS",
+    "title": "🤖 [LOG SISTEM] 📋 PROSES 4 -&gt; Inisialisasi Periode RPS",
     "description": "Siklus penyusunan RPS digital resmi dibuka oleh sistem SIMPEL.",
     "color": 1752220,
     "fields": [
@@ -105,110 +102,6 @@ JSON.stringify({
       <bpmn:incoming>F_TB_RPS_01</bpmn:incoming>
       <bpmn:outgoing>F_TB_RPS_02</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="T_EskalasiKorprodi" name="Eskalasi Otomatis&#10;ke Korprodi:&#10;Dosen Belum Submit">
-      <bpmn:documentation>Sistem mengirim notifikasi eskalasi ke Korprodi: dosen belum submit RPS mendekati deadline. Korprodi dapat langsung menghubungi dosen melalui informasi kontak yang tersedia di sistem.</bpmn:documentation>
-      <bpmn:extensionElements>
-        <ns1:connector>
-          <ns1:inputOutput>
-            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
-            <ns1:inputParameter name="method">POST</ns1:inputParameter>
-            <ns1:inputParameter name="headers">
-              <ns1:map>
-                <ns1:entry key="Content-Type">application/json</ns1:entry>
-              </ns1:map>
-            </ns1:inputParameter>
-            <ns1:inputParameter name="payload">
-              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
-var dosen = execution.getVariable('dosenKoor');
-
-JSON.stringify({
-  "embeds": [{
-    "title": " [ ALERT ESKALASI]  PROSES 4 -&gt; Pelanggaran Batas Waktu Submit RPS",
-    "description": "Dosen Koordinator melewati batas tenggat waktu 14 hari. Pembuatan dokumen dialihkan pengawasannya ke pimpinan prodi.",
-    "color": 12597547,
-    "fields": [
-      { "name": "Mata Kuliah", "value": mk, "inline": true },
-      { "name": "Dosen Penanggungjawab", "value": dosen, "inline": true },
-      { "name": "Tindakan Sistem", "value": "⚠️ Tiket darurat diterbitkan ke meja Korprodi (`g4kps`)", "inline": false }
-    ],
-    "footer": { "text": "SLA Monitor Component - Level: HIGH" }
-  }]
-});</ns1:script>
-            </ns1:inputParameter>
-          </ns1:inputOutput>
-          <ns1:connectorId>http-connector</ns1:connectorId>
-        </ns1:connector>
-      </bpmn:extensionElements>
-      <bpmn:incoming>F_TB_RPS_eskalasi</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_back</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:userTask id="T_KorprodiReviewL1" name="Level 1: Korprodi&#10;Review RPS di&#10;Dashboard SIMPEL" ns1:formRef="form_korprodi_review_l1" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
-      <bpmn:documentation>Korprodi mereview RPS di dashboard SIMPEL. Semua informasi yang dibutuhkan tersedia di satu tampilan: ploting dosen, kode MK, distribusi SKS, dan konten RPS.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_06</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_l1</bpmn:outgoing>
-      <bpmn:property id="Property_1wcr79w" name="__targetRef_placeholder" />
-      <bpmn:dataInputAssociation id="DataInputAssociation_154r0qo">
-        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
-        <bpmn:targetRef>Property_1wcr79w</bpmn:targetRef>
-      </bpmn:dataInputAssociation>
-    </bpmn:userTask>
-    <bpmn:exclusiveGateway id="GW_L1_ToBe" name="L1 Approve?">
-      <bpmn:documentation>Keputusan Level 1: approve atau perlu revisi? Catatan revisi dimasukkan langsung ke sistem dan dikirim otomatis ke Dosen Koordinator.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_l1</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_l1ya</bpmn:outgoing>
-      <bpmn:outgoing>F_TB_RPS_l1tidak</bpmn:outgoing>
-    </bpmn:exclusiveGateway>
-    <bpmn:userTask id="T_DosenInputSIMPEL" name="Dosen Input Konten&#10;RPS Langsung di&#10;Platform SIMPEL" ns1:formRef="form_dosen_input_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
-      <bpmn:documentation>Dosen Koordinator mengisi konten RPS di SIMPEL. Pada TO-BE, sistem menampilkan progress pengisian dan validasi format secara real-time untuk membantu kelengkapan dokumen.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_04</bpmn:incoming>
-      <bpmn:incoming>F_TB_RPS_back</bpmn:incoming>
-      <bpmn:incoming>F_TB_RPS_revdosen</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_dosen_in</bpmn:outgoing>
-      <bpmn:property id="Property_125r9r1" name="__targetRef_placeholder" />
-      <bpmn:dataInputAssociation id="DataInputAssociation_12mvegc">
-        <bpmn:sourceRef>DataRef_Reminder_TB</bpmn:sourceRef>
-        <bpmn:targetRef>Property_125r9r1</bpmn:targetRef>
-      </bpmn:dataInputAssociation>
-      <bpmn:dataOutputAssociation id="DataOut_DosenInput">
-        <bpmn:targetRef>DataRef_RPSDraft_TB</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_DosenSubmit" name="Dosen Klik Submit&#10;Setelah Konten&#10;Lengkap" ns1:formRef="form_dosen_submit_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
-      <bpmn:documentation>Dosen Koordinator menekan tombol Submit setelah konten RPS lengkap. Sistem otomatis memvalidasi kelengkapan isian sebelum memproses pengajuan.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_dosen_in</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_05</bpmn:outgoing>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_GKMReviewL2" name="Level 2: GKM Review&#10;Substansi dan&#10;Sub-CPMK" ns1:formRef="form_gkm_review_l2" ns1:formRefBinding="latest" ns1:assignee="gkm">
-      <bpmn:documentation>GKM mereview substansi akademik RPS di dashboard: kecukupan Sub-CPMK, relevansi konten per pertemuan, dan kesesuaian instrumen asesmen dengan bobot SKS.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_08</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_l2</bpmn:outgoing>
-      <bpmn:property id="Property_0kutsv5" name="__targetRef_placeholder" />
-      <bpmn:dataInputAssociation id="DataInputAssociation_1miuedx">
-        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
-        <bpmn:targetRef>Property_0kutsv5</bpmn:targetRef>
-      </bpmn:dataInputAssociation>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_WadekApproveL3" name="Level 3: Wadek 1&#10;Final Approval&#10;di SIMPEL" ns1:formRef="form_wadek_approve_l3" ns1:formRefBinding="latest" ns1:candidateGroups="Pimpinan">
-      <bpmn:documentation>Wadek 1 memberikan final approval digital di SIMPEL setelah memverifikasi bahwa seluruh rantai kendali mutu (Level 1 dan 2) telah terpenuhi.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_10</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_l3</bpmn:outgoing>
-      <bpmn:property id="Property_1cnz021" name="__targetRef_placeholder" />
-      <bpmn:dataInputAssociation id="DataInputAssociation_0pe1265">
-        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
-        <bpmn:targetRef>Property_1cnz021</bpmn:targetRef>
-      </bpmn:dataInputAssociation>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_KorprodiSetPloting" name="Korprodi Set Ploting&#10;Tim Dosen di SIMPEL&#10;(Dashboard)" ns1:formRef="form_korprodi_set_ploting" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
-      <bpmn:documentation>Korprodi menetapkan ploting tim dosen di dashboard SIMPEL yang terintegrasi. Data dosen tersedia otomatis dari sistem sehingga Korprodi hanya perlu mengkonfirmasi penugasan.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_02</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_03</bpmn:outgoing>
-    </bpmn:userTask>
-    <bpmn:dataObjectReference id="DataRef_RPSDraft_TB" name="Draft RPS (SIMPEL TO-BE)" dataObjectRef="DataObject_RPSDraft_TB">
-      <bpmn:documentation>Draft RPS di SIMPEL dengan validasi format real-time. Sistem menampilkan progress kelengkapan dan peringatan jika ada bagian yang kurang.</bpmn:documentation>
-    </bpmn:dataObjectReference>
-    <bpmn:dataObject id="DataObject_RPSDraft_TB">
-      <bpmn:documentation id="documentation_uc0tUg" />
-    </bpmn:dataObject>
     <bpmn:sequenceFlow id="F_TB_RPS_01" sourceRef="SE_SistemMulaiRPS" targetRef="T_AutoNotifPloting">
       <bpmn:documentation id="documentation_gD0BmQ" />
     </bpmn:sequenceFlow>
@@ -218,216 +111,7 @@ JSON.stringify({
     <bpmn:sequenceFlow id="F_TB_RPS_03" sourceRef="T_KorprodiSetPloting" targetRef="T_AutoNotifDeadline">
       <bpmn:documentation id="documentation_GWgkeQ" />
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_04" sourceRef="T_AutoNotifDeadline" targetRef="T_DosenInputSIMPEL">
-      <bpmn:documentation id="documentation_lOgtFQ" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_eskalasi" sourceRef="T_BoundaryTimerDosen" targetRef="T_EskalasiKorprodi">
-      <bpmn:documentation id="documentation_Ltu3OQ" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_back" sourceRef="T_EskalasiKorprodi" targetRef="T_DosenInputSIMPEL">
-      <bpmn:documentation id="documentation_T0oqsw" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l1ya" name="Approve" sourceRef="GW_L1_ToBe" targetRef="T_AutoRoute_L2">
-      <bpmn:documentation id="documentation_7037SQ" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL1Approved == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_08" sourceRef="T_AutoRoute_L2" targetRef="T_GKMReviewL2">
-      <bpmn:documentation id="documentation_vRS0PA" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_10" sourceRef="T_AutoRoute_L3" targetRef="T_WadekApproveL3">
-      <bpmn:documentation id="documentation_Gr4pyQ" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_06" sourceRef="T_AutoRoute_L1" targetRef="T_KorprodiReviewL1">
-      <bpmn:documentation id="documentation_qsC7Vg" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l1" sourceRef="T_KorprodiReviewL1" targetRef="GW_L1_ToBe">
-      <bpmn:documentation id="documentation_FddFjg" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l1tidak" name="Revisi" sourceRef="GW_L1_ToBe" targetRef="T_KorprodiInputRevisiL1">
-      <bpmn:documentation id="documentation_E5RVpg" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL1Approved == false}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_revdosen" sourceRef="T_DosenRevisiToBe" targetRef="T_DosenInputSIMPEL">
-      <bpmn:documentation id="documentation_VxfNaA" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_dosen_in" sourceRef="T_DosenInputSIMPEL" targetRef="T_DosenSubmit">
-      <bpmn:documentation id="documentation_5By9Lg" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_05" sourceRef="T_DosenSubmit" targetRef="T_AutoRoute_L1">
-      <bpmn:documentation id="documentation_pE3Y6g" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_rev3" name="Revisi" sourceRef="GW_L3_ToBe" targetRef="T_DosenRevisiToBe">
-      <bpmn:documentation id="documentation_tU1sXw" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL3Approved == false}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l2" sourceRef="T_GKMReviewL2" targetRef="GW_L2_ToBe">
-      <bpmn:documentation id="documentation_pM0PoA" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l3" sourceRef="T_WadekApproveL3" targetRef="GW_L3_ToBe">
-      <bpmn:documentation id="documentation_0pExow" />
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l3ya" name="Approve" sourceRef="GW_L3_ToBe" targetRef="T_GeneratePDFFinal">
-      <bpmn:documentation id="documentation_r0wSQw" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL3Approved == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:serviceTask id="T_AutoNotifDeadline" name="Sistem Kirim Reminder&#10;Deadline RPS H-7&#10;dan H-3">
-      <bpmn:documentation>Sistem secara otomatis mengirim pengingat deadline ke Dosen Koordinator: pada H-7 dan H-3 sebelum batas waktu submit. Mengurangi keterlambatan akibat lupa.</bpmn:documentation>
-      <bpmn:extensionElements>
-        <ns1:connector>
-          <ns1:inputOutput>
-            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
-            <ns1:inputParameter name="method">POST</ns1:inputParameter>
-            <ns1:inputParameter name="headers">
-              <ns1:map>
-                <ns1:entry key="Content-Type">application/json</ns1:entry>
-              </ns1:map>
-            </ns1:inputParameter>
-            <ns1:inputParameter name="payload">
-              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
-var dosen = execution.getVariable('dosenKoor');
-
-JSON.stringify({
-  "embeds": [{
-    "title": " [NOTIFIKASI OPERASIONAL]  PROSES 4 -&gt; Broadcast Pengingat Batas Waktu",
-    "description": "Sistem otomatis mengirimkan email pengingat pengisian konten substansi pembelajaran.",
-    "color": 1752220,
-    "fields": [
-      { "name": "Mata Kuliah", "value": mk, "inline": true },
-      { "name": "Dosen Koordinator", "value": dosen, "inline": true },
-      { "name": "Status Pengingat", "value": "⏳ Reminder H-7 &amp; H-3 Terkirim", "inline": false }
-    ],
-    "footer": { "text": "SIMPEL Automated Notification Scheduler" }
-  }]
-});</ns1:script>
-            </ns1:inputParameter>
-          </ns1:inputOutput>
-          <ns1:connectorId>http-connector</ns1:connectorId>
-        </ns1:connector>
-      </bpmn:extensionElements>
-      <bpmn:incoming>F_TB_RPS_03</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_04</bpmn:outgoing>
-      <bpmn:dataOutputAssociation id="DataOut_Reminder">
-        <bpmn:targetRef>DataRef_Reminder_TB</bpmn:targetRef>
-      </bpmn:dataOutputAssociation>
-    </bpmn:serviceTask>
-    <bpmn:dataObjectReference id="DataRef_Reminder_TB" name="Notifikasi Deadline Otomatis (H-7, H-3)" dataObjectRef="DataObject_Reminder_TB">
-      <bpmn:documentation>Pengingat deadline otomatis yang dikirim sistem ke Dosen Koordinator pada H-7 dan H-3 sebelum batas waktu submit. Mengurangi keterlambatan.</bpmn:documentation>
-    </bpmn:dataObjectReference>
-    <bpmn:dataObject id="DataObject_Reminder_TB">
-      <bpmn:documentation id="documentation_QF9r0w" />
-    </bpmn:dataObject>
-    <bpmn:boundaryEvent id="T_BoundaryTimerDosen" name="Timer: Dosen&#10;Belum Submit&#10;di Deadline" attachedToRef="T_DosenInputSIMPEL">
-      <bpmn:documentation>Timer boundary event 14 hari (P14D). Jika Dosen Koordinator belum submit RPS dalam 14 hari setelah periode dimulai, sistem mengaktifkan jalur eskalasi ke Korprodi.</bpmn:documentation>
-      <bpmn:outgoing>F_TB_RPS_eskalasi</bpmn:outgoing>
-      <bpmn:timerEventDefinition id="TimerEventDefinition_0sngtpr">
-        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT1M</bpmn:timeDuration>
-      </bpmn:timerEventDefinition>
-    </bpmn:boundaryEvent>
-    <bpmn:serviceTask id="T_AutoRoute_L1" name="Auto-Route ke L1&#10;Korprodi Setelah&#10;Dosen Submit">
-      <bpmn:documentation>Sistem secara otomatis merouting RPS yang disubmit ke antrian review Korprodi (Level 1) dan mengirimkan notifikasi bahwa ada RPS baru yang menunggu review.</bpmn:documentation>
-      <bpmn:extensionElements>
-        <ns1:connector>
-          <ns1:inputOutput>
-            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
-            <ns1:inputParameter name="method">POST</ns1:inputParameter>
-            <ns1:inputParameter name="headers">
-              <ns1:map>
-                <ns1:entry key="Content-Type">application/json</ns1:entry>
-              </ns1:map>
-            </ns1:inputParameter>
-            <ns1:inputParameter name="payload">
-              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
-
-JSON.stringify({
-  "embeds": [{
-    "title": "烙 [LOG SISTEM]  PROSES 4 -&gt; Routing Berkas ke Level 1",
-    "description": "Dosen Koordinator selesai melakukan submit konten lengkap. Token dialihkan ke meja verifikasi dokumen.",
-    "color": 1752220,
-    "fields": [
-      { "name": "Mata Kuliah", "value": mk, "inline": true },
-      { "name": "Tahapan Validasi", "value": " Menunggu Pemeriksaan Struktur oleh Korprodi", "inline": true }
-    ],
-    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
-  }]
-});</ns1:script>
-            </ns1:inputParameter>
-          </ns1:inputOutput>
-          <ns1:connectorId>http-connector</ns1:connectorId>
-        </ns1:connector>
-      </bpmn:extensionElements>
-      <bpmn:incoming>F_TB_RPS_05</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_06</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="T_AutoRoute_L2" name="Auto-Route ke L2&#10;GKM Setelah&#10;L1 Approve">
-      <bpmn:documentation>Setelah Level 1 approve, sistem otomatis merouting RPS ke GKM (Level 2) dan mengirimkan notifikasi review.</bpmn:documentation>
-      <bpmn:extensionElements>
-        <ns1:connector>
-          <ns1:inputOutput>
-            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
-            <ns1:inputParameter name="method">POST</ns1:inputParameter>
-            <ns1:inputParameter name="headers">
-              <ns1:map>
-                <ns1:entry key="Content-Type">application/json</ns1:entry>
-              </ns1:map>
-            </ns1:inputParameter>
-            <ns1:inputParameter name="payload">
-              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
-
-JSON.stringify({
-  "embeds": [{
-    "title": "烙 [LOG SISTEM]  PROSES 4 -&gt; Routing Berkas ke Level 2",
-    "description": "Lolos Verifikasi Struktur! Dokumen dialihkan otomatis ke tim Gugus Kendali Mutu.",
-    "color": 1752220,
-    "fields": [
-      { "name": "Mata Kuliah", "value": mk, "inline": true },
-      { "name": "Tahapan Validasi", "value": " Menunggu Review Substansi &amp; Sub-CPMK oleh GKM", "inline": true }
-    ],
-    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
-  }]
-});</ns1:script>
-            </ns1:inputParameter>
-          </ns1:inputOutput>
-          <ns1:connectorId>http-connector</ns1:connectorId>
-        </ns1:connector>
-      </bpmn:extensionElements>
-      <bpmn:incoming>F_TB_RPS_l1ya</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_08</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:serviceTask id="T_AutoRoute_L3" name="Auto-Route ke L3&#10;Wadek 1 Setelah&#10;L2 Approve">
-      <bpmn:documentation>Setelah Level 2 approve, sistem otomatis merouting RPS ke Wadek 1 (Level 3) untuk validasi dan pengesahan akhir.</bpmn:documentation>
-      <bpmn:extensionElements>
-        <ns1:connector>
-          <ns1:inputOutput>
-            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
-            <ns1:inputParameter name="method">POST</ns1:inputParameter>
-            <ns1:inputParameter name="headers">
-              <ns1:map>
-                <ns1:entry key="Content-Type">application/json</ns1:entry>
-              </ns1:map>
-            </ns1:inputParameter>
-            <ns1:inputParameter name="payload">
-              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
-
-JSON.stringify({
-  "embeds": [{
-    "title": "烙 [LOG SISTEM]  PROSES 4 -&gt; Routing Berkas ke Level 3 (Final Check)",
-    "description": "Lolos Verifikasi Substansi GKM! Dokumen dinaikkan ke meja pimpinan fakultas untuk persetujuan akhir.",
-    "color": 1752220,
-    "fields": [
-      { "name": "Mata Kuliah", "value": mk, "inline": true },
-      { "name": "Tahapan Validasi", "value": " Menunggu Tanda Tangan Pengesahan Wakil Dekan 1", "inline": true }
-    ],
-    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
-  }]
-});</ns1:script>
-            </ns1:inputParameter>
-          </ns1:inputOutput>
-          <ns1:connectorId>http-connector</ns1:connectorId>
-        </ns1:connector>
-      </bpmn:extensionElements>
-      <bpmn:incoming>F_TB_RPS_l2ya</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_10</bpmn:outgoing>
-    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1ppnrix" sourceRef="SubProc_PenyusunanDraft" targetRef="T_AutoRoute_L1" />
     <bpmn:endEvent id="EE_RPSPublished" name="RPS Final Dipublikasi&#10;ke Semua Pihak&#10;(Mahasiswa, Dosen)">
       <bpmn:documentation>RPS dipublikasikan ke semua pihak — mahasiswa dapat mengakses rencana pembelajaran di hari pertama semester, memenuhi hak mahasiswa atas kepastian rencana belajar.</bpmn:documentation>
       <bpmn:incoming>F_TB_RPS_end</bpmn:incoming>
@@ -450,7 +134,7 @@ var dosen = execution.getVariable('dosenKoor');
 
 JSON.stringify({
   "embeds": [{
-    "title": " [NOTIFIKASI OPERASIONAL]  PROSES 4 -&gt; Publikasi RPS Selesai",
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 4 -&gt; Publikasi RPS Selesai",
     "description": "Sukses Besar! Dokumen kurikulum RPS resmi dipublikasikan secara masal ke seluruh portal civitas akademik.",
     "color": 3066993,
     "fields": [
@@ -491,7 +175,7 @@ JSON.stringify({
 
 JSON.stringify({
   "embeds": [{
-    "title": "烙 [LOG SISTEM]  PROSES 4 -&gt; Generator Manifes Dokumen Resmi",
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 4 -&gt; Generator Manifes Dokumen Resmi",
     "description": "Wadek 1 menyetujui pengesahan. Sistem berhasil melakukan enkripsi berkas ke format PDF bersertifikat digital.",
     "color": 1752220,
     "fields": [
@@ -518,63 +202,366 @@ JSON.stringify({
     <bpmn:dataObject id="DataObject_RPSFinal_TB">
       <bpmn:documentation id="documentation_DEN60w" />
     </bpmn:dataObject>
-    <bpmn:sequenceFlow id="F_TB_RPS_l2ya" name="Approve" sourceRef="GW_L2_ToBe" targetRef="T_AutoRoute_L3">
-      <bpmn:documentation id="documentation_lSWtxA" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL2Approved == true}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_l2tidak" name="Revisi" sourceRef="GW_L2_ToBe" targetRef="T_GKMInputRevisiL2">
-      <bpmn:documentation id="documentation_EKx3Fw" />
-      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL2Approved == false}</bpmn:conditionExpression>
-    </bpmn:sequenceFlow>
+    <bpmn:serviceTask id="T_AutoRoute_L2" name="Auto-Route ke L2&#10;GKM Setelah&#10;L1 Approve">
+      <bpmn:documentation>Setelah Level 1 approve, sistem otomatis merouting RPS ke GKM (Level 2) dan mengirimkan notifikasi review.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 4 -&gt; Routing Berkas ke Level 2",
+    "description": "Lolos Verifikasi Struktur! Dokumen dialihkan otomatis ke tim Gugus Kendali Mutu.",
+    "color": 1752220,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Tahapan Validasi", "value": " Menunggu Review Substansi &amp; Sub-CPMK oleh GKM", "inline": true }
+    ],
+    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_RPS_l1ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_08</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="T_AutoRoute_L1" name="Auto-Route ke L1&#10;Korprodi Setelah&#10;Dosen Submit">
+      <bpmn:documentation>Sistem secara otomatis merouting RPS yang disubmit ke antrian review Korprodi (Level 1) dan mengirimkan notifikasi bahwa ada RPS baru yang menunggu review.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 4 -&gt; Routing Berkas ke Level 1",
+    "description": "Dosen Koordinator selesai melakukan submit konten lengkap. Token dialihkan ke meja verifikasi dokumen.",
+    "color": 1752220,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Tahapan Validasi", "value": " Menunggu Pemeriksaan Struktur oleh Korprodi", "inline": true }
+    ],
+    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1ppnrix</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_06</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_KorprodiReviewL1" name="Level 1: Korprodi&#10;Review RPS di&#10;Dashboard SIMPEL" ns1:formRef="form_korprodi_review_l1" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi mereview RPS di dashboard SIMPEL. Semua informasi yang dibutuhkan tersedia di satu tampilan: ploting dosen, kode MK, distribusi SKS, dan konten RPS.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_06</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_l1</bpmn:outgoing>
+      <bpmn:property id="Property_1kgye6p" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_154r0qo">
+        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
+        <bpmn:targetRef>Property_1kgye6p</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:dataObjectReference id="DataRef_RPSDraft_TB" name="Draft RPS (SIMPEL TO-BE)" dataObjectRef="DataObject_RPSDraft_TB">
+      <bpmn:documentation>Draft RPS di SIMPEL dengan validasi format real-time. Sistem menampilkan progress kelengkapan dan peringatan jika ada bagian yang kurang.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_RPSDraft_TB">
+      <bpmn:documentation id="documentation_uc0tUg" />
+    </bpmn:dataObject>
+    <bpmn:userTask id="T_WadekApproveL3" name="Level 3: Wadek 1&#10;Final Approval&#10;di SIMPEL" ns1:formRef="form_wadek_approve_l3" ns1:formRefBinding="latest" ns1:candidateGroups="Pimpinan">
+      <bpmn:documentation>Wadek 1 memberikan final approval digital di SIMPEL setelah memverifikasi bahwa seluruh rantai kendali mutu (Level 1 dan 2) telah terpenuhi.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_10</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_l3</bpmn:outgoing>
+      <bpmn:property id="Property_130uars" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_0pe1265">
+        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
+        <bpmn:targetRef>Property_130uars</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:userTask id="T_GKMReviewL2" name="Level 2: GKM Review&#10;Substansi dan&#10;Sub-CPMK" ns1:formRef="form_gkm_review_l2" ns1:formRefBinding="latest" ns1:assignee="gkm">
+      <bpmn:documentation>GKM mereview substansi akademik RPS di dashboard: kecukupan Sub-CPMK, relevansi konten per pertemuan, dan kesesuaian instrumen asesmen dengan bobot SKS.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_08</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_l2</bpmn:outgoing>
+      <bpmn:property id="Property_0l4abkv" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1miuedx">
+        <bpmn:sourceRef>DataRef_RPSDraft_TB</bpmn:sourceRef>
+        <bpmn:targetRef>Property_0l4abkv</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="GW_L1_ToBe" name="L1 Approve?">
+      <bpmn:documentation>Keputusan Level 1: approve atau perlu revisi? Catatan revisi dimasukkan langsung ke sistem dan dikirim otomatis ke Dosen Koordinator.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_l1</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_l1tidak</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_RPS_l1ya</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
     <bpmn:sequenceFlow id="F_TB_RPS_end" sourceRef="T_PublishRPS" targetRef="EE_RPSPublished">
       <bpmn:documentation id="documentation_Pl3Ngw" />
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="F_TB_RPS_12" sourceRef="T_GeneratePDFFinal" targetRef="T_PublishRPS">
       <bpmn:documentation id="documentation_BuvRog" />
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_rev2" sourceRef="T_GKMInputRevisiL2" targetRef="T_DosenRevisiToBe">
-      <bpmn:documentation id="documentation_yol4YQ" />
+    <bpmn:sequenceFlow id="F_TB_RPS_l3ya" name="Approve" sourceRef="GW_L3_ToBe" targetRef="T_GeneratePDFFinal">
+      <bpmn:documentation id="documentation_r0wSQw" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL3Approved == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_RPS_rev1" sourceRef="T_KorprodiInputRevisiL1" targetRef="T_DosenRevisiToBe">
-      <bpmn:documentation id="documentation_qowoLA" />
+    <bpmn:sequenceFlow id="F_TB_RPS_l2ya" name="Approve" sourceRef="GW_L2_ToBe" targetRef="T_AutoRoute_L3">
+      <bpmn:documentation id="documentation_lSWtxA" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL2Approved == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_10" sourceRef="T_AutoRoute_L3" targetRef="T_WadekApproveL3">
+      <bpmn:documentation id="documentation_Gr4pyQ" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l1ya" name="Approve" sourceRef="GW_L1_ToBe" targetRef="T_AutoRoute_L2">
+      <bpmn:documentation id="documentation_7037SQ" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL1Approved == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_08" sourceRef="T_AutoRoute_L2" targetRef="T_GKMReviewL2">
+      <bpmn:documentation id="documentation_vRS0PA" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_06" sourceRef="T_AutoRoute_L1" targetRef="T_KorprodiReviewL1">
+      <bpmn:documentation id="documentation_qsC7Vg" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l1" sourceRef="T_KorprodiReviewL1" targetRef="GW_L1_ToBe">
+      <bpmn:documentation id="documentation_FddFjg" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l3" sourceRef="T_WadekApproveL3" targetRef="GW_L3_ToBe">
+      <bpmn:documentation id="documentation_0pExow" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_rev3" name="Revisi" sourceRef="GW_L3_ToBe" targetRef="T_DosenRevisiToBe">
+      <bpmn:documentation id="documentation_tU1sXw" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL3Approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l1tidak" name="Revisi" sourceRef="GW_L1_ToBe" targetRef="T_DosenRevisiToBe">
+      <bpmn:documentation id="documentation_E5RVpg" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL1Approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l2tidak" name="Revisi" sourceRef="GW_L2_ToBe" targetRef="T_DosenRevisiToBe">
+      <bpmn:documentation id="documentation_EKx3Fw" />
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${isL2Approved == false}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="F_TB_RPS_l2" sourceRef="T_GKMReviewL2" targetRef="GW_L2_ToBe">
+      <bpmn:documentation id="documentation_pM0PoA" />
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_01wpjth" sourceRef="T_AutoNotifDeadline" targetRef="SubProc_PenyusunanDraft" />
+    <bpmn:sequenceFlow id="Flow_0jfv94h" sourceRef="T_EskalasiKorprodi" targetRef="Event_0ms578o" />
+    <bpmn:userTask id="T_KorprodiSetPloting" name="Korprodi Set Ploting&#10;Tim Dosen di SIMPEL&#10;(Dashboard)" ns1:formRef="form_korprodi_set_ploting" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
+      <bpmn:documentation>Korprodi menetapkan ploting tim dosen di dashboard SIMPEL yang terintegrasi. Data dosen tersedia otomatis dari sistem sehingga Korprodi hanya perlu mengkonfirmasi penugasan.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_02</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_03</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="T_AutoNotifDeadline" name="Sistem Kirim Reminder&#10;Deadline RPS H-7&#10;dan H-3">
+      <bpmn:documentation>Sistem secara otomatis mengirim pengingat deadline ke Dosen Koordinator: pada H-7 dan H-3 sebelum batas waktu submit. Mengurangi keterlambatan akibat lupa.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
+var dosen = execution.getVariable('dosenKoor');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "📢 [NOTIFIKASI OPERASIONAL] ⏱️ PROSES 4 -&gt; Broadcast Pengingat Batas Waktu",
+    "description": "Sistem otomatis mengirimkan email pengingat pengisian konten substansi pembelajaran.",
+    "color": 1752220,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen Koordinator", "value": dosen, "inline": true },
+      { "name": "Status Pengingat", "value": "⏳ Reminder H-7 &amp; H-3 Terkirim", "inline": false }
+    ],
+    "footer": { "text": "SIMPEL Automated Notification Scheduler" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_RPS_03</bpmn:incoming>
+      <bpmn:outgoing>Flow_01wpjth</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="DataOut_Reminder">
+        <bpmn:targetRef>DataRef_Reminder_TB</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_1r26osq" sourceRef="T_BoundaryTimerDosen" targetRef="T_EskalasiKorprodi" />
+    <bpmn:sequenceFlow id="Flow_1f7vk4j" sourceRef="T_DosenRevisiToBe" targetRef="SubProc_PenyusunanDraft" />
+    <bpmn:boundaryEvent id="T_BoundaryTimerDosen" name="Timer: Dosen&#10;Belum Submit&#10;di Deadline" attachedToRef="SubProc_PenyusunanDraft">
+      <bpmn:documentation>Timer boundary event 14 hari (P14D). Jika Dosen Koordinator belum submit RPS dalam 14 hari setelah periode dimulai, sistem mengaktifkan jalur eskalasi ke Korprodi.</bpmn:documentation>
+      <bpmn:outgoing>Flow_1r26osq</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_0sngtpr">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT5M</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:subProcess id="SubProc_PenyusunanDraft" name="Penyusunan Draft RPS">
+      <bpmn:incoming>Flow_01wpjth</bpmn:incoming>
+      <bpmn:incoming>Flow_1f7vk4j</bpmn:incoming>
+      <bpmn:outgoing>Flow_1ppnrix</bpmn:outgoing>
+      <bpmn:userTask id="T_DosenInputSIMPEL" name="Dosen Input Konten&#10;RPS Langsung di&#10;Platform SIMPEL" ns1:formRef="form_dosen_input_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+        <bpmn:documentation>Dosen Koordinator mengisi konten RPS di SIMPEL. Pada TO-BE, sistem menampilkan progress pengisian dan validasi format secara real-time untuk membantu kelengkapan dokumen.</bpmn:documentation>
+        <bpmn:incoming>Flow_0jybdy3</bpmn:incoming>
+        <bpmn:outgoing>F_TB_RPS_dosen_in</bpmn:outgoing>
+        <bpmn:property id="Property_1jfb7n4" name="__targetRef_placeholder" />
+        <bpmn:dataInputAssociation id="DataInputAssociation_12mvegc">
+          <bpmn:sourceRef>DataRef_Reminder_TB</bpmn:sourceRef>
+          <bpmn:targetRef>Property_1jfb7n4</bpmn:targetRef>
+        </bpmn:dataInputAssociation>
+        <bpmn:dataOutputAssociation id="DataOut_DosenInput">
+          <bpmn:targetRef>DataRef_RPSDraft_TB</bpmn:targetRef>
+        </bpmn:dataOutputAssociation>
+      </bpmn:userTask>
+      <bpmn:userTask id="T_DosenSubmit" name="Dosen Klik Submit&#10;Setelah Konten&#10;Lengkap" ns1:formRef="form_dosen_submit_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+        <bpmn:documentation>Dosen Koordinator menekan tombol Submit setelah konten RPS lengkap. Sistem otomatis memvalidasi kelengkapan isian sebelum memproses pengajuan.</bpmn:documentation>
+        <bpmn:incoming>F_TB_RPS_dosen_in</bpmn:incoming>
+        <bpmn:outgoing>Flow_030hn76</bpmn:outgoing>
+      </bpmn:userTask>
+      <bpmn:sequenceFlow id="F_TB_RPS_dosen_in" sourceRef="T_DosenInputSIMPEL" targetRef="T_DosenSubmit">
+        <bpmn:documentation id="documentation_5By9Lg" />
+      </bpmn:sequenceFlow>
+      <bpmn:startEvent id="Mulai_penyusunan_draft_RPS" name="Mulai Penyusunan">
+        <bpmn:outgoing>Flow_0jybdy3</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:sequenceFlow id="Flow_0jybdy3" sourceRef="Mulai_penyusunan_draft_RPS" targetRef="T_DosenInputSIMPEL" />
+      <bpmn:endEvent id="Event_1vizd1t">
+        <bpmn:incoming>Flow_030hn76</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_030hn76" sourceRef="T_DosenSubmit" targetRef="Event_1vizd1t" />
+    </bpmn:subProcess>
+    <bpmn:dataObjectReference id="DataRef_Reminder_TB" name="Notifikasi Deadline Otomatis (H-7, H-3)" dataObjectRef="DataObject_Reminder_TB">
+      <bpmn:documentation>Pengingat deadline otomatis yang dikirim sistem ke Dosen Koordinator pada H-7 dan H-3 sebelum batas waktu submit. Mengurangi keterlambatan.</bpmn:documentation>
+    </bpmn:dataObjectReference>
+    <bpmn:dataObject id="DataObject_Reminder_TB">
+      <bpmn:documentation id="documentation_QF9r0w" />
+    </bpmn:dataObject>
+    <bpmn:endEvent id="Event_0ms578o" name="RPS Gagal Submit — Eskalasi Manual Korprodi">
+      <bpmn:documentation>Dosen koordinator tidak submit RPS dalam batas waktu yang ditentukan. Sistem telah mengirim notifikasi eskalasi ke Korprodi. Korprodi menindaklanjuti secara manual di luar sistem (menghubungi dosen, memperpanjang deadline, atau mengganti dosen koordinator). Jika situasi sudah ditangani, Korprodi dapat memulai proses baru.</bpmn:documentation>
+      <bpmn:incoming>Flow_0jfv94h</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="T_EskalasiKorprodi" name="Eskalasi Otomatis&#10;ke Korprodi:&#10;Dosen Belum Submit">
+      <bpmn:documentation>Sistem mengirim notifikasi eskalasi ke Korprodi: dosen belum submit RPS mendekati deadline. Korprodi dapat langsung menghubungi dosen melalui informasi kontak yang tersedia di sistem.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
+var dosen = execution.getVariable('dosenKoor');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "⚠️ [🔔 ALERT ESKALASI] 📨 PROSES 4 -&gt; Pelanggaran Batas Waktu Submit RPS",
+    "description": "Dosen Koordinator melewati batas tenggat waktu 14 hari. Pembuatan dokumen dialihkan pengawasannya ke pimpinan prodi.",
+    "color": 12597547,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Dosen Penanggungjawab", "value": dosen, "inline": true },
+      { "name": "Tindakan Sistem", "value": "⚠️ Tiket darurat diterbitkan ke meja Korprodi (`g4kps`)", "inline": false }
+    ],
+    "footer": { "text": "SLA Monitor Component - Level: HIGH" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_1r26osq</bpmn:incoming>
+      <bpmn:outgoing>Flow_0jfv94h</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="T_DosenRevisiToBe" name="Dosen Revisi RPS&#10;Berdasarkan Notif&#10;Catatan di SIMPEL" ns1:formRef="form_dosen_revisi_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
+      <bpmn:documentation>Dosen Koordinator merevisi RPS berdasarkan catatan dari level mana pun. Setelah revisi selesai, Dosen melakukan submit ulang yang kembali memulai rantai verifikasi dari Level 1.</bpmn:documentation>
+      <bpmn:incoming>F_TB_RPS_rev3</bpmn:incoming>
+      <bpmn:incoming>F_TB_RPS_l1tidak</bpmn:incoming>
+      <bpmn:incoming>F_TB_RPS_l2tidak</bpmn:incoming>
+      <bpmn:outgoing>Flow_1f7vk4j</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="T_AutoRoute_L3" name="Auto-Route ke L3&#10;Wadek 1 Setelah&#10;L2 Approve">
+      <bpmn:documentation>Setelah Level 2 approve, sistem otomatis merouting RPS ke Wadek 1 (Level 3) untuk validasi dan pengesahan akhir.</bpmn:documentation>
+      <bpmn:extensionElements>
+        <ns1:connector>
+          <ns1:inputOutput>
+            <ns1:inputParameter name="url">https://discordapp.com/api/webhooks/1513419819246948354/dKnXD4cSnuxlsXLpmkMSc0IeShN17I--4dtoNhs1FY0v2HFo2rqGc8dnzaNMuw2Gv1m7</ns1:inputParameter>
+            <ns1:inputParameter name="method">POST</ns1:inputParameter>
+            <ns1:inputParameter name="headers">
+              <ns1:map>
+                <ns1:entry key="Content-Type">application/json</ns1:entry>
+              </ns1:map>
+            </ns1:inputParameter>
+            <ns1:inputParameter name="payload">
+              <ns1:script scriptFormat="javascript">var mk = execution.getVariable('mataKuliahRPS');
+
+JSON.stringify({
+  "embeds": [{
+    "title": "🤖 [LOG SISTEM OTOMATIS] 📋 PROSES 4 -&gt; Routing Berkas ke Level 3 (Final Check)",
+    "description": "Lolos Verifikasi Substansi GKM! Dokumen dinaikkan ke meja pimpinan fakultas untuk persetujuan akhir.",
+    "color": 1752220,
+    "fields": [
+      { "name": "Mata Kuliah", "value": mk, "inline": true },
+      { "name": "Tahapan Validasi", "value": " Menunggu Tanda Tangan Pengesahan Wakil Dekan 1", "inline": true }
+    ],
+    "footer": { "text": "SIMPEL Workflow Dispatcher Engine" }
+  }]
+});</ns1:script>
+            </ns1:inputParameter>
+          </ns1:inputOutput>
+          <ns1:connectorId>http-connector</ns1:connectorId>
+        </ns1:connector>
+      </bpmn:extensionElements>
+      <bpmn:incoming>F_TB_RPS_l2ya</bpmn:incoming>
+      <bpmn:outgoing>F_TB_RPS_10</bpmn:outgoing>
+    </bpmn:serviceTask>
     <bpmn:exclusiveGateway id="GW_L2_ToBe" name="L2 Approve?">
       <bpmn:documentation>Keputusan Level 2 (GKM): approve atau kembalikan dengan catatan revisi substansi?</bpmn:documentation>
       <bpmn:incoming>F_TB_RPS_l2</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_l2ya</bpmn:outgoing>
       <bpmn:outgoing>F_TB_RPS_l2tidak</bpmn:outgoing>
+      <bpmn:outgoing>F_TB_RPS_l2ya</bpmn:outgoing>
     </bpmn:exclusiveGateway>
-    <bpmn:userTask id="T_DosenRevisiToBe" name="Dosen Revisi RPS&#10;Berdasarkan Notif&#10;Catatan di SIMPEL" ns1:formRef="form_dosen_revisi_rps" ns1:formRefBinding="latest" ns1:candidateGroups="Dosen">
-      <bpmn:documentation>Dosen Koordinator merevisi RPS berdasarkan catatan dari level mana pun. Setelah revisi selesai, Dosen melakukan submit ulang yang kembali memulai rantai verifikasi dari Level 1.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_rev1</bpmn:incoming>
-      <bpmn:incoming>F_TB_RPS_rev2</bpmn:incoming>
-      <bpmn:incoming>F_TB_RPS_rev3</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_revdosen</bpmn:outgoing>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_GKMInputRevisiL2" name="GKM Input Catatan&#10;Revisi Substansi&#10;di SIMPEL" ns1:formRef="form_gkm_revisi_l2" ns1:formRefBinding="latest" ns1:assignee="gkm">
-      <bpmn:documentation>GKM menginput catatan revisi substansi akademik secara spesifik di sistem. Notifikasi otomatis dikirim ke Dosen Koordinator.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_l2tidak</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_rev2</bpmn:outgoing>
-    </bpmn:userTask>
-    <bpmn:userTask id="T_KorprodiInputRevisiL1" name="Korprodi Input&#10;Catatan Revisi&#10;di SIMPEL" ns1:formRef="form_korprodi_revisi_l1" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
-      <bpmn:documentation>Korprodi menginput catatan revisi spesifik di sistem. Catatan ini langsung ter-notifikasi ke Dosen Koordinator dengan detail perbaikan yang diperlukan.</bpmn:documentation>
-      <bpmn:incoming>F_TB_RPS_l1tidak</bpmn:incoming>
-      <bpmn:outgoing>F_TB_RPS_rev1</bpmn:outgoing>
-    </bpmn:userTask>
     <bpmn:exclusiveGateway id="GW_L3_ToBe" name="L3 Approve?">
       <bpmn:documentation>Keputusan Level 3 (Wadek): approve (RPS menjadi Final) atau kembalikan dengan catatan untuk perbaikan?</bpmn:documentation>
       <bpmn:incoming>F_TB_RPS_l3</bpmn:incoming>
       <bpmn:outgoing>F_TB_RPS_l3ya</bpmn:outgoing>
       <bpmn:outgoing>F_TB_RPS_rev3</bpmn:outgoing>
     </bpmn:exclusiveGateway>
+    <bpmn:association id="Assoc_Ann_TimerEsk" sourceRef="TextAnn_TimerEskalasi" targetRef="T_BoundaryTimerDosen" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="Diagram_RPS_ToBe">
     <bpmndi:BPMNPlane id="Plane_RPS_ToBe" bpmnElement="Pembuatan_RPS">
       <bpmndi:BPMNShape id="S_Pool_RPS_TB" bpmnElement="Pool_RPS_ToBe" isHorizontal="true">
-        <dc:Bounds x="140" y="140" width="2098" height="925" />
+        <dc:Bounds x="140" y="70" width="2098" height="995" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_Lane_Sis_RPS_TB" bpmnElement="Lane_Sistem_RPS" isHorizontal="true">
-        <dc:Bounds x="170" y="140" width="2068" height="185" />
+        <dc:Bounds x="170" y="70" width="2068" height="255" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_Lane_Korp_RPS_TB" bpmnElement="Lane_Korprodi_ToBe_RPS" isHorizontal="true">
         <dc:Bounds x="170" y="325" width="2068" height="185" />
@@ -597,101 +584,127 @@ JSON.stringify({
       <bpmndi:BPMNShape id="S_T_NotifPlot" bpmnElement="T_AutoNotifPloting">
         <dc:Bounds x="310" y="190" width="120" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_EskRPS" bpmnElement="T_EskalasiKorprodi">
-        <dc:Bounds x="960" y="190" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_L1Review" bpmnElement="T_KorprodiReviewL1">
-        <dc:Bounds x="1160" y="375" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_GW_L1_TB" bpmnElement="GW_L1_ToBe" isMarkerVisible="true">
-        <dc:Bounds x="1340" y="390" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1335" y="447" width="62" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_InputSIMPEL" bpmnElement="T_DosenInputSIMPEL">
-        <dc:Bounds x="760" y="560" width="120" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_SubmitTB" bpmnElement="T_DosenSubmit">
-        <dc:Bounds x="940" y="560" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_L2Review" bpmnElement="T_GKMReviewL2">
-        <dc:Bounds x="1380" y="745" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_L3Approve" bpmnElement="T_WadekApproveL3">
-        <dc:Bounds x="1580" y="930" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_SetPlot" bpmnElement="T_KorprodiSetPloting">
-        <dc:Bounds x="490" y="375" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_DataRef_RPSDraft_TB" bpmnElement="DataRef_RPSDraft_TB">
-        <dc:Bounds x="1202" y="605" width="36" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1108" y="596" width="84" height="27" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_NotifDL" bpmnElement="T_AutoNotifDeadline">
-        <dc:Bounds x="610" y="190" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_DataRef_Reminder_TB" bpmnElement="DataRef_Reminder_TB">
-        <dc:Bounds x="622" y="595" width="36" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="597" y="651" width="87" height="53" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_RouteL1" bpmnElement="T_AutoRoute_L1">
-        <dc:Bounds x="1160" y="190" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_RouteL2" bpmnElement="T_AutoRoute_L2">
-        <dc:Bounds x="1305" y="190" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_RouteL3" bpmnElement="T_AutoRoute_L3">
-        <dc:Bounds x="1590" y="190" width="120" height="80" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_EE_RPS_TB" bpmnElement="EE_RPSPublished">
-        <dc:Bounds x="2102" y="212" width="36" height="36" />
+        <dc:Bounds x="2182" y="212" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="2080" y="255" width="81" height="66" />
+          <dc:Bounds x="2160" y="255" width="81" height="66" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_Publish" bpmnElement="T_PublishRPS">
-        <dc:Bounds x="1980" y="190" width="80" height="80" />
+        <dc:Bounds x="2060" y="190" width="80" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_GenFinal" bpmnElement="T_GeneratePDFFinal">
-        <dc:Bounds x="1820" y="190" width="120" height="80" />
+        <dc:Bounds x="1900" y="190" width="120" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_DataRef_RPSFinal_TB" bpmnElement="DataRef_RPSFinal_TB">
-        <dc:Bounds x="1862" y="345" width="36" height="50" />
+        <dc:Bounds x="1942" y="345" width="36" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1836" y="401" width="88" height="27" />
+          <dc:Bounds x="1916" y="401" width="88" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_GW_L2_TB" bpmnElement="GW_L2_ToBe" isMarkerVisible="true">
-        <dc:Bounds x="1545" y="760" width="50" height="50" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1540" y="817" width="63" height="14" />
-        </bpmndi:BPMNLabel>
+      <bpmndi:BPMNShape id="S_T_RouteL2" bpmnElement="T_AutoRoute_L2">
+        <dc:Bounds x="1385" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_RouteL1" bpmnElement="T_AutoRoute_L1">
+        <dc:Bounds x="1240" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L1Review" bpmnElement="T_KorprodiReviewL1">
+        <dc:Bounds x="1240" y="375" width="120" height="80" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_RevisiTB" bpmnElement="T_DosenRevisiToBe">
-        <dc:Bounds x="1380" y="560" width="120" height="80" />
+        <dc:Bounds x="1460" y="560" width="120" height="80" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_L2Revisi_TB" bpmnElement="T_GKMInputRevisiL2">
-        <dc:Bounds x="1680" y="745" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_T_L1Revisi_TB" bpmnElement="T_KorprodiInputRevisiL1">
-        <dc:Bounds x="1470" y="375" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="S_GW_L3_TB" bpmnElement="GW_L3_ToBe" isMarkerVisible="true">
-        <dc:Bounds x="1805" y="945" width="50" height="50" />
+      <bpmndi:BPMNShape id="Shape_DataRef_RPSDraft_TB" bpmnElement="DataRef_RPSDraft_TB">
+        <dc:Bounds x="1282" y="605" width="36" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1800" y="1002" width="63" height="14" />
+          <dc:Bounds x="1317" y="576" width="85" height="27" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Event_0bnknep_di" bpmnElement="T_BoundaryTimerDosen">
-        <dc:Bounds x="802" y="542" width="36" height="36" />
+      <bpmndi:BPMNShape id="S_T_L3Approve" bpmnElement="T_WadekApproveL3">
+        <dc:Bounds x="1660" y="930" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_L2Review" bpmnElement="T_GKMReviewL2">
+        <dc:Bounds x="1460" y="745" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L1_TB" bpmnElement="GW_L1_ToBe" isMarkerVisible="true">
+        <dc:Bounds x="1420" y="390" width="50" height="50" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="825" y="470" width="69" height="40" />
+          <dc:Bounds x="1479.5" y="408" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_SetPlot" bpmnElement="T_KorprodiSetPloting">
+        <dc:Bounds x="470" y="375" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_NotifDL" bpmnElement="T_AutoNotifDeadline">
+        <dc:Bounds x="630" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_RouteL3" bpmnElement="T_AutoRoute_L3">
+        <dc:Bounds x="1710" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L2_TB" bpmnElement="GW_L2_ToBe" isMarkerVisible="true">
+        <dc:Bounds x="1615" y="760" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1610" y="817" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_GW_L3_TB" bpmnElement="GW_L3_ToBe" isMarkerVisible="true">
+        <dc:Bounds x="1825" y="945" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1820" y="1002" width="63" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_11zzs8a_di" bpmnElement="SubProc_PenyusunanDraft" isExpanded="true">
+        <dc:Bounds x="740" y="520" width="470" height="170" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_InputSIMPEL" bpmnElement="T_DosenInputSIMPEL">
+        <dc:Bounds x="840" y="585" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_SubmitTB" bpmnElement="T_DosenSubmit">
+        <dc:Bounds x="990" y="585" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_01vd93y_di" bpmnElement="Mulai_penyusunan_draft_RPS">
+        <dc:Bounds x="762" y="572" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="749" y="615" width="62" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_1vizd1t_di" bpmnElement="Event_1vizd1t">
+        <dc:Bounds x="1152" y="607" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="E_TB_RPS_dosen" bpmnElement="F_TB_RPS_dosen_in">
+        <di:waypoint x="960" y="625" />
+        <di:waypoint x="990" y="625" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0jybdy3_di" bpmnElement="Flow_0jybdy3">
+        <di:waypoint x="798" y="590" />
+        <di:waypoint x="819" y="590" />
+        <di:waypoint x="819" y="625" />
+        <di:waypoint x="840" y="625" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_030hn76_di" bpmnElement="Flow_030hn76">
+        <di:waypoint x="1110" y="625" />
+        <di:waypoint x="1152" y="625" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Shape_DataRef_Reminder_TB" bpmnElement="DataRef_Reminder_TB">
+        <dc:Bounds x="632" y="610" width="36" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="536" y="608" width="87" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0ms578o_di" bpmnElement="Event_0ms578o">
+        <dc:Bounds x="812" y="397" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="719" y="398.5" width="81" height="53" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_T_EskRPS" bpmnElement="T_EskalasiKorprodi">
+        <dc:Bounds x="930" y="190" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0bnknep_di" bpmnElement="T_BoundaryTimerDosen">
+        <dc:Bounds x="1092" y="502" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1115" y="465" width="69" height="40" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="E_TB_RPS_01" bpmnElement="F_TB_RPS_01">
@@ -700,209 +713,196 @@ JSON.stringify({
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_RPS_02" bpmnElement="F_TB_RPS_02">
         <di:waypoint x="430" y="230" />
-        <di:waypoint x="450" y="230" />
-        <di:waypoint x="450" y="415" />
-        <di:waypoint x="490" y="415" />
+        <di:waypoint x="440" y="230" />
+        <di:waypoint x="440" y="415" />
+        <di:waypoint x="470" y="415" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_RPS_03" bpmnElement="F_TB_RPS_03">
+        <di:waypoint x="590" y="415" />
         <di:waypoint x="610" y="415" />
-        <di:waypoint x="670" y="415" />
-        <di:waypoint x="670" y="270" />
+        <di:waypoint x="610" y="230" />
+        <di:waypoint x="630" y="230" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_04" bpmnElement="F_TB_RPS_04">
-        <di:waypoint x="730" y="230" />
-        <di:waypoint x="745" y="230" />
-        <di:waypoint x="745" y="600" />
-        <di:waypoint x="760" y="600" />
+      <bpmndi:BPMNEdge id="Flow_1ppnrix_di" bpmnElement="Flow_1ppnrix">
+        <di:waypoint x="1210" y="560" />
+        <di:waypoint x="1220" y="560" />
+        <di:waypoint x="1220" y="230" />
+        <di:waypoint x="1240" y="230" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_esk" bpmnElement="F_TB_RPS_eskalasi">
-        <di:waypoint x="820" y="542" />
-        <di:waypoint x="820" y="310" />
-        <di:waypoint x="1020" y="310" />
-        <di:waypoint x="1020" y="270" />
+      <bpmndi:BPMNEdge id="E_TB_RPS_end" bpmnElement="F_TB_RPS_end">
+        <di:waypoint x="2140" y="230" />
+        <di:waypoint x="2182" y="230" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_back" bpmnElement="F_TB_RPS_back">
-        <di:waypoint x="960" y="230" />
-        <di:waypoint x="780" y="230" />
-        <di:waypoint x="780" y="560" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_l1ya" bpmnElement="F_TB_RPS_l1ya">
-        <di:waypoint x="1365" y="390" />
-        <di:waypoint x="1365" y="270" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1372" y="323" width="41" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_08" bpmnElement="F_TB_RPS_08">
-        <di:waypoint x="1425" y="230" />
-        <di:waypoint x="1450" y="230" />
-        <di:waypoint x="1450" y="490" />
-        <di:waypoint x="1340" y="490" />
-        <di:waypoint x="1340" y="785" />
-        <di:waypoint x="1380" y="785" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_10" bpmnElement="F_TB_RPS_10">
-        <di:waypoint x="1650" y="270" />
-        <di:waypoint x="1650" y="930" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_06" bpmnElement="F_TB_RPS_06">
-        <di:waypoint x="1220" y="270" />
-        <di:waypoint x="1220" y="375" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_l1" bpmnElement="F_TB_RPS_l1">
-        <di:waypoint x="1280" y="415" />
-        <di:waypoint x="1340" y="415" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_l1tidak" bpmnElement="F_TB_RPS_l1tidak">
-        <di:waypoint x="1390" y="415" />
-        <di:waypoint x="1470" y="415" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1415" y="395" width="30" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_revdosen" bpmnElement="F_TB_RPS_revdosen">
-        <di:waypoint x="1440" y="640" />
-        <di:waypoint x="1440" y="680" />
-        <di:waypoint x="820" y="680" />
-        <di:waypoint x="820" y="640" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_dosen" bpmnElement="F_TB_RPS_dosen_in">
-        <di:waypoint x="880" y="600" />
-        <di:waypoint x="940" y="600" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_05" bpmnElement="F_TB_RPS_05">
-        <di:waypoint x="1060" y="600" />
-        <di:waypoint x="1110" y="600" />
-        <di:waypoint x="1110" y="230" />
-        <di:waypoint x="1160" y="230" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_rev3" bpmnElement="F_TB_RPS_rev3">
-        <di:waypoint x="1830" y="945" />
-        <di:waypoint x="1830" y="580" />
-        <di:waypoint x="1500" y="580" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1795" y="923" width="30" height="14" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_l2" bpmnElement="F_TB_RPS_l2">
-        <di:waypoint x="1500" y="785" />
-        <di:waypoint x="1545" y="785" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_l3" bpmnElement="F_TB_RPS_l3">
-        <di:waypoint x="1700" y="970" />
-        <di:waypoint x="1805" y="970" />
+      <bpmndi:BPMNEdge id="E_TB_RPS_12" bpmnElement="F_TB_RPS_12">
+        <di:waypoint x="1960" y="190" />
+        <di:waypoint x="1960" y="170" />
+        <di:waypoint x="2100" y="170" />
+        <di:waypoint x="2100" y="190" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_RPS_l3ya" bpmnElement="F_TB_RPS_l3ya">
-        <di:waypoint x="1855" y="970" />
-        <di:waypoint x="1890" y="970" />
-        <di:waypoint x="1890" y="470" />
-        <di:waypoint x="1770" y="470" />
-        <di:waypoint x="1770" y="230" />
-        <di:waypoint x="1820" y="230" />
+        <di:waypoint x="1875" y="970" />
+        <di:waypoint x="1920" y="970" />
+        <di:waypoint x="1920" y="470" />
+        <di:waypoint x="1850" y="470" />
+        <di:waypoint x="1850" y="230" />
+        <di:waypoint x="1900" y="230" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1899" y="913" width="41" height="14" />
+          <dc:Bounds x="1929" y="923" width="41" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_RPS_l2ya" bpmnElement="F_TB_RPS_l2ya">
-        <di:waypoint x="1570" y="760" />
-        <di:waypoint x="1570" y="680" />
-        <di:waypoint x="1610" y="680" />
-        <di:waypoint x="1610" y="340" />
-        <di:waypoint x="1540" y="340" />
-        <di:waypoint x="1540" y="233" />
-        <di:waypoint x="1590" y="232" />
+        <di:waypoint x="1665" y="785" />
+        <di:waypoint x="1690" y="785" />
+        <di:waypoint x="1690" y="231" />
+        <di:waypoint x="1710" y="231" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1519" y="713" width="41" height="14" />
+          <dc:Bounds x="1699" y="753" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_10" bpmnElement="F_TB_RPS_10">
+        <di:waypoint x="1770" y="270" />
+        <di:waypoint x="1770" y="900" />
+        <di:waypoint x="1720" y="900" />
+        <di:waypoint x="1720" y="930" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_l1ya" bpmnElement="F_TB_RPS_l1ya">
+        <di:waypoint x="1445" y="390" />
+        <di:waypoint x="1445" y="270" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1399" y="363" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_08" bpmnElement="F_TB_RPS_08">
+        <di:waypoint x="1505" y="230" />
+        <di:waypoint x="1560" y="230" />
+        <di:waypoint x="1560" y="490" />
+        <di:waypoint x="1420" y="490" />
+        <di:waypoint x="1420" y="785" />
+        <di:waypoint x="1460" y="785" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_06" bpmnElement="F_TB_RPS_06">
+        <di:waypoint x="1300" y="270" />
+        <di:waypoint x="1300" y="375" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_l1" bpmnElement="F_TB_RPS_l1">
+        <di:waypoint x="1360" y="415" />
+        <di:waypoint x="1420" y="415" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_l3" bpmnElement="F_TB_RPS_l3">
+        <di:waypoint x="1780" y="970" />
+        <di:waypoint x="1825" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_rev3" bpmnElement="F_TB_RPS_rev3">
+        <di:waypoint x="1850" y="945" />
+        <di:waypoint x="1850" y="580" />
+        <di:waypoint x="1580" y="580" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1815" y="923" width="30" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="E_TB_RPS_l1tidak" bpmnElement="F_TB_RPS_l1tidak">
+        <di:waypoint x="1445" y="440" />
+        <di:waypoint x="1445" y="530" />
+        <di:waypoint x="1520" y="530" />
+        <di:waypoint x="1520" y="560" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1405" y="444" width="30" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_RPS_l2tidak" bpmnElement="F_TB_RPS_l2tidak">
-        <di:waypoint x="1595" y="785" />
-        <di:waypoint x="1680" y="785" />
+        <di:waypoint x="1640" y="760" />
+        <di:waypoint x="1640" y="620" />
+        <di:waypoint x="1580" y="620" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="1608" y="765" width="30" height="14" />
+          <dc:Bounds x="1595" y="753" width="30" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_end" bpmnElement="F_TB_RPS_end">
-        <di:waypoint x="2060" y="230" />
-        <di:waypoint x="2102" y="230" />
+      <bpmndi:BPMNEdge id="E_TB_RPS_l2" bpmnElement="F_TB_RPS_l2">
+        <di:waypoint x="1580" y="785" />
+        <di:waypoint x="1615" y="785" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_12" bpmnElement="F_TB_RPS_12">
-        <di:waypoint x="1880" y="190" />
-        <di:waypoint x="1880" y="170" />
-        <di:waypoint x="2020" y="170" />
-        <di:waypoint x="2020" y="190" />
+      <bpmndi:BPMNEdge id="Flow_01wpjth_di" bpmnElement="Flow_01wpjth">
+        <di:waypoint x="690" y="270" />
+        <di:waypoint x="690" y="605" />
+        <di:waypoint x="740" y="605" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_rev2" bpmnElement="F_TB_RPS_rev2">
-        <di:waypoint x="1740" y="745" />
-        <di:waypoint x="1740" y="620" />
-        <di:waypoint x="1500" y="620" />
+      <bpmndi:BPMNEdge id="Flow_0jfv94h_di" bpmnElement="Flow_0jfv94h">
+        <di:waypoint x="930" y="230" />
+        <di:waypoint x="884" y="230" />
+        <di:waypoint x="884" y="415" />
+        <di:waypoint x="848" y="415" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="E_TB_RPS_rev1" bpmnElement="F_TB_RPS_rev1">
-        <di:waypoint x="1530" y="455" />
-        <di:waypoint x="1530" y="540" />
-        <di:waypoint x="1440" y="540" />
-        <di:waypoint x="1440" y="560" />
+      <bpmndi:BPMNEdge id="Flow_1r26osq_di" bpmnElement="Flow_1r26osq">
+        <di:waypoint x="1110" y="502" />
+        <di:waypoint x="1110" y="230" />
+        <di:waypoint x="1050" y="230" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="Shape_TextAnn_TimerEskalasi" bpmnElement="TextAnn_TimerEskalasi">
-        <dc:Bounds x="920" y="450" width="190" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_TextAnn_AutoRoute" bpmnElement="TextAnn_AutoRoute">
-        <dc:Bounds x="1090" y="80" width="280" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_TextAnn_Publish" bpmnElement="TextAnn_Publish">
-        <dc:Bounds x="1810" y="70" width="260" height="56" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="DataInputAssociation_154r0qo_di" bpmnElement="DataInputAssociation_154r0qo">
-        <di:waypoint x="1220" y="605" />
-        <di:waypoint x="1220" y="455" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataInputAssociation_12mvegc_di" bpmnElement="DataInputAssociation_12mvegc">
-        <di:waypoint x="658" y="620" />
-        <di:waypoint x="760" y="620" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_DataOut_DosenInput" bpmnElement="DataOut_DosenInput">
-        <di:waypoint x="853" y="640" />
-        <di:waypoint x="870" y="660" />
-        <di:waypoint x="1160" y="660" />
-        <di:waypoint x="1202" y="629" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataInputAssociation_1miuedx_di" bpmnElement="DataInputAssociation_1miuedx">
-        <di:waypoint x="1238" y="630" />
-        <di:waypoint x="1310" y="630" />
-        <di:waypoint x="1406" y="745" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataInputAssociation_0pe1265_di" bpmnElement="DataInputAssociation_0pe1265">
-        <di:waypoint x="1220" y="655" />
-        <di:waypoint x="1220" y="973" />
-        <di:waypoint x="1580" y="970" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_DataOut_Reminder" bpmnElement="DataOut_Reminder">
-        <di:waypoint x="640" y="270" />
-        <di:waypoint x="640" y="595" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="DataInputAssociation_1x0b169_di" bpmnElement="DataInputAssociation_1x0b169">
-        <di:waypoint x="1898" y="370" />
-        <di:waypoint x="2020" y="370" />
-        <di:waypoint x="2020" y="270" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_DataOut_PDFFinal" bpmnElement="DataOut_PDFFinal">
-        <di:waypoint x="1880" y="270" />
-        <di:waypoint x="1880" y="345" />
+      <bpmndi:BPMNEdge id="Flow_1f7vk4j_di" bpmnElement="Flow_1f7vk4j">
+        <di:waypoint x="1520" y="640" />
+        <di:waypoint x="1520" y="670" />
+        <di:waypoint x="1210" y="670" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_Ann_TimerEsk" bpmnElement="Assoc_Ann_TimerEsk">
-        <di:waypoint x="1015" y="500" />
-        <di:waypoint x="1015" y="520" />
-        <di:waypoint x="860" y="520" />
-        <di:waypoint x="833" y="547" />
+        <di:waypoint x="1005" y="470" />
+        <di:waypoint x="1005" y="490" />
+        <di:waypoint x="1090" y="490" />
+        <di:waypoint x="1100" y="505" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_AutoRoute" bpmnElement="Assoc_Ann_AutoRoute">
-        <di:waypoint x="1220" y="130" />
-        <di:waypoint x="1220" y="190" />
+      <bpmndi:BPMNShape id="Shape_TextAnn_TimerEskalasi" bpmnElement="TextAnn_TimerEskalasi">
+        <dc:Bounds x="910" y="420" width="190" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_AutoRoute" bpmnElement="TextAnn_AutoRoute">
+        <dc:Bounds x="1140" y="115" width="280" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TextAnn_Publish" bpmnElement="TextAnn_Publish">
+        <dc:Bounds x="1930" y="90" width="260" height="56" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1x0b169_di" bpmnElement="DataInputAssociation_1x0b169">
+        <di:waypoint x="1978" y="370" />
+        <di:waypoint x="2100" y="370" />
+        <di:waypoint x="2100" y="270" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_PDFFinal" bpmnElement="DataOut_PDFFinal">
+        <di:waypoint x="1960" y="270" />
+        <di:waypoint x="1960" y="345" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_154r0qo_di" bpmnElement="DataInputAssociation_154r0qo">
+        <di:waypoint x="1300" y="605" />
+        <di:waypoint x="1300" y="455" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_0pe1265_di" bpmnElement="DataInputAssociation_0pe1265">
+        <di:waypoint x="1300" y="655" />
+        <di:waypoint x="1300" y="973" />
+        <di:waypoint x="1660" y="970" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1miuedx_di" bpmnElement="DataInputAssociation_1miuedx">
+        <di:waypoint x="1318" y="630" />
+        <di:waypoint x="1340" y="630" />
+        <di:waypoint x="1340" y="810" />
+        <di:waypoint x="1460" y="810" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_Reminder" bpmnElement="DataOut_Reminder">
+        <di:waypoint x="650" y="270" />
+        <di:waypoint x="650" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_12mvegc_di" bpmnElement="DataInputAssociation_12mvegc">
+        <di:waypoint x="668" y="645" />
+        <di:waypoint x="840" y="645" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_DataOut_DosenInput" bpmnElement="DataOut_DosenInput">
+        <di:waypoint x="900" y="665" />
+        <di:waypoint x="900" y="680" />
+        <di:waypoint x="1160" y="680" />
+        <di:waypoint x="1282" y="624" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_Assoc_Ann_Publish" bpmnElement="Assoc_Ann_Publish">
-        <di:waypoint x="1930" y="126" />
-        <di:waypoint x="1920" y="160" />
-        <di:waypoint x="1983" y="194" />
+        <di:waypoint x="2120" y="146" />
+        <di:waypoint x="2120" y="140" />
+        <di:waypoint x="2120" y="190" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Ann_AutoRoute" bpmnElement="Assoc_Ann_AutoRoute">
+        <di:waypoint x="1278" y="165" />
+        <di:waypoint x="1286" y="190" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

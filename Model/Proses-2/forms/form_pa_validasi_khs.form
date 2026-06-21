@@ -8,14 +8,20 @@
       "readonly": true
     },
     {
-      "label": "Total SKS",
+      "label": "Total SKS (Tervalidasi Sistem)",
       "type": "number",
       "id": "F_sks",
       "key": "totalSKS",
       "readonly": true
     },
     {
-      "label": "Apakah data KHS & SKS mahasiswa ini VALID? (Centang jika Ya)",
+      "label": "Catatan Asesmen PA (kesiapan akademik, beban semester, kematangan topik)",
+      "type": "textarea",
+      "id": "F_catatan",
+      "key": "catatanPA"
+    },
+    {
+      "label": "Kesimpulan: Mahasiswa ini SIAP memulai TA (Centang jika Ya)",
       "type": "checkbox",
       "id": "F_valid",
       "key": "isKHSValid"

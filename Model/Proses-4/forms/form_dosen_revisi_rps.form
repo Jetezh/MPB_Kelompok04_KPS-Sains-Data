@@ -1,17 +1,24 @@
 {
   "components": [
     {
-      "label": "Catatan Koreksi Korprodi",
+      "label": "Catatan Revisi dari Korprodi (L1)",
       "type": "textfield",
       "id": "F_cat1",
       "key": "catatanRevisiL1",
       "readonly": true
     },
     {
-      "label": "Catatan Koreksi GKM",
+      "label": "Catatan Revisi dari GKM (L2)",
       "type": "textfield",
       "id": "F_cat2",
       "key": "catatanRevisiL2",
+      "readonly": true
+    },
+    {
+      "label": "Catatan Revisi dari Wadek 1 (L3)",
+      "type": "textfield",
+      "id": "F_cat3",
+      "key": "catatanRevisiL3",
       "readonly": true
     },
     {
@@ -19,9 +26,7 @@
       "type": "textfield",
       "id": "F_link",
       "key": "linkDraftRPS",
-      "validate": {
-        "required": true
-      }
+      "validate": { "required": true }
     }
   ],
   "type": "default",

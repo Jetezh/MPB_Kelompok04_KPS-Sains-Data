@@ -101,7 +101,7 @@ JSON.stringify({
       </bpmn:dataOutputAssociation>
     </bpmn:serviceTask>
     <bpmn:userTask id="T_KorprodiSetMK" name="Korprodi Input Daftar&#10;MK yang Ditawarkan&#10;di Sistem" ns1:formRef="form_korprodi_input_mk" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
-      <bpmn:documentation>Korprodi menginput daftar mata kuliah yang akan ditawarkan melalui antarmuka dashboard. Ini satu-satunya input manual yang diperlukan dari Korprodi di tahap awal.</bpmn:documentation>
+      <bpmn:documentation>Korprodi mereview dan mengkurasi daftar mata kuliah yang akan ditawarkan semester ini melalui dashboard. Daftar awal sudah dimuat otomatis oleh sistem dari database, namun Korprodi dapat melakukan penyesuaian: menambah MK baru, menonaktifkan MK yang tidak ditawarkan, atau mengubah konfigurasi. Ini merupakan satu-satunya intervensi manual Korprodi di tahap awal sebelum sistem melanjutkan auto-suggest plotting.</bpmn:documentation>
       <bpmn:incoming>F_TB_PG_02</bpmn:incoming>
       <bpmn:outgoing>F_TB_PG_03</bpmn:outgoing>
     </bpmn:userTask>
@@ -142,9 +142,10 @@ JSON.stringify({
       <bpmn:outgoing>F_TB_PG_04</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:userTask id="T_KorprodiRevisi" name="Korprodi Revisi&#10;Plotting Manual&#10;di Dashboard" ns1:formRef="form_korprodi_revisi" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
-      <bpmn:documentation id="documentation_EqYh2Q" />
+      <bpmn:documentation id="documentation_EqYh2Q">Korprodi melakukan revisi plotting dosen di dashboard terintegrasi. Revisi dapat terjadi karena dua alasan: (1) Sistem mendeteksi violation berupa bentrok jadwal atau overload beban SKS; (2) Wadek 1 menolak plotting final dan mengembalikan dengan catatan revisi. Setelah revisi selesai, sistem akan men-generate ulang draft plotting digital yang baru sebelum direview kembali oleh Korprodi.</bpmn:documentation>
       <bpmn:incoming>F_TB_PG_10_tidak</bpmn:incoming>
       <bpmn:incoming>F_TB_PG_16_tidak</bpmn:incoming>
+      <bpmn:incoming>F_TB_PG_07</bpmn:incoming>
       <bpmn:outgoing>Flow_1ois8iv</bpmn:outgoing>
     </bpmn:userTask>
     <bpmn:exclusiveGateway id="GW_KorprodiApprove" name="Korprodi&#10;Approve?">
@@ -236,7 +237,7 @@ JSON.stringify({
         </ns1:connector>
       </bpmn:extensionElements>
       <bpmn:incoming>F_TB_PG_06_tidak</bpmn:incoming>
-      <bpmn:incoming>F_TB_PG_07</bpmn:incoming>
+      <bpmn:incoming>Flow_1ois8iv</bpmn:incoming>
       <bpmn:outgoing>F_TB_PG_08</bpmn:outgoing>
       <bpmn:dataOutputAssociation id="DataOut_DraftDigital">
         <bpmn:targetRef>DataRef_DraftDigital</bpmn:targetRef>
@@ -347,7 +348,7 @@ JSON.stringify({
       <bpmn:documentation id="documentation_WYyrvA" />
       <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${adaViolation == true}</bpmn:conditionExpression>
     </bpmn:sequenceFlow>
-    <bpmn:sequenceFlow id="F_TB_PG_07" sourceRef="T_FlagViolation" targetRef="T_GenerateDraftDigital">
+    <bpmn:sequenceFlow id="F_TB_PG_07" sourceRef="T_FlagViolation" targetRef="T_KorprodiRevisi">
       <bpmn:documentation id="documentation_H65TGQ" />
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="F_TB_PG_06_tidak" name="Tidak" sourceRef="GW_AdaViolation" targetRef="T_GenerateDraftDigital">
@@ -446,7 +447,7 @@ JSON.stringify({
       <bpmn:incoming>F_TB_PG_16_ya</bpmn:incoming>
       <bpmn:outgoing>F_TB_PG_end</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:sequenceFlow id="Flow_1ois8iv" sourceRef="T_KorprodiRevisi" targetRef="T_KorprodiReviewDraft">
+    <bpmn:sequenceFlow id="Flow_1ois8iv" sourceRef="T_KorprodiRevisi" targetRef="T_GenerateDraftDigital">
       <bpmn:documentation id="documentation_CJQp0A" />
     </bpmn:sequenceFlow>
     <bpmn:sequenceFlow id="Flow_05i1bnu" sourceRef="T_KorprodiHandleEskalasi" targetRef="GW_RetryCheck">
@@ -499,7 +500,6 @@ execution.setVariable('retryAssignDosen', count);</ns1:script>
     <bpmn:userTask id="T_KorprodiReviewDraft" name="Korprodi Review&#10;Draft di Dashboard&#10;Terintegrasi" ns1:formRef="form_korprodi_review_draft" ns1:formRefBinding="latest" ns1:candidateGroups="KPS">
       <bpmn:documentation>Korprodi mereview draft plotting di dashboard terintegrasi. Dapat melakukan penyesuaian minor langsung di antarmuka sebelum mengirim ke dosen untuk konfirmasi.</bpmn:documentation>
       <bpmn:incoming>F_TB_PG_08</bpmn:incoming>
-      <bpmn:incoming>Flow_1ois8iv</bpmn:incoming>
       <bpmn:outgoing>F_TB_PG_09</bpmn:outgoing>
       <bpmn:property id="Property_077xlfu" name="__targetRef_placeholder" />
       <bpmn:dataInputAssociation id="DataInputAssociation_1k6cnhq">
@@ -572,9 +572,11 @@ execution.setVariable('retryAssignDosen', count);</ns1:script>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_FlagViol" bpmnElement="T_FlagViolation">
         <dc:Bounds x="1060" y="110" width="120" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_GenDraft" bpmnElement="T_GenerateDraftDigital">
         <dc:Bounds x="1060" y="240" width="120" height="80" />
+        <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="S_T_WadekDigital" bpmnElement="T_WadekApproveDigital">
         <dc:Bounds x="1510" y="775" width="120" height="80" />
@@ -740,8 +742,12 @@ execution.setVariable('retryAssignDosen', count);</ns1:script>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_PG_07" bpmnElement="F_TB_PG_07">
-        <di:waypoint x="1120" y="190" />
-        <di:waypoint x="1120" y="240" />
+        <di:waypoint x="1180" y="150" />
+        <di:waypoint x="1210" y="150" />
+        <di:waypoint x="1210" y="380" />
+        <di:waypoint x="1010" y="380" />
+        <di:waypoint x="1010" y="445" />
+        <di:waypoint x="1060" y="445" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="E_TB_PG_06tidak" bpmnElement="F_TB_PG_06_tidak">
         <di:waypoint x="990" y="235" />
@@ -774,8 +780,8 @@ execution.setVariable('retryAssignDosen', count);</ns1:script>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1ois8iv_di" bpmnElement="Flow_1ois8iv">
-        <di:waypoint x="1180" y="445" />
-        <di:waypoint x="1220" y="445" />
+        <di:waypoint x="1120" y="405" />
+        <di:waypoint x="1120" y="320" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_05i1bnu_di" bpmnElement="Flow_05i1bnu">
         <di:waypoint x="1565" y="450" />

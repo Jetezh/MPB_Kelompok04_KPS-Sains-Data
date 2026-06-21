@@ -9,6 +9,7 @@
       </input>
       <output id="Output_Tier" label="Tier Level" name="tier" typeRef="integer" />
       <rule id="Rule_Tier3">
+        <description>Terminal / DO Kritis — Mahasiswa sudah melampaui batas normal masa studi. Sistem otomatis mengirim eskalasi ke Dekanat, notifikasi ke kontak darurat (orang tua/wali), dan menjadwalkan konseling wajib.</description>
         <inputEntry id="IE_T3">
           <text>&gt;= 14</text>
         </inputEntry>
@@ -17,6 +18,7 @@
         </outputEntry>
       </rule>
       <rule id="Rule_Tier2">
+        <description>Critical / Warning Keras — Mahasiswa mendekati batas kritis masa studi. Sistem mengirim notifikasi ke Dosen PA dan Korprodi untuk segera menjadwalkan konseling dan intervensi akademik.</description>
         <inputEntry id="IE_T2">
           <text>12, 13</text>
         </inputEntry>
@@ -25,6 +27,7 @@
         </outputEntry>
       </rule>
       <rule id="Rule_Tier1">
+        <description>Warning / Peringatan Awal — Mahasiswa mulai memasuki zona rawan keterlambatan studi. Sistem mengirim notifikasi reminder ke Dosen PA untuk melakukan monitoring rutin terhadap mahasiswa yang bersangkutan.</description>
         <inputEntry id="IE_T1">
           <text>9, 10, 11</text>
         </inputEntry>
@@ -33,6 +36,7 @@
         </outputEntry>
       </rule>
       <rule id="Rule_Normal">
+        <description>Normal / Aman — Mahasiswa masih dalam masa studi normal. Tidak diperlukan tindakan khusus, cukup monitoring rutin setiap semester oleh sistem secara otomatis.</description>
         <inputEntry id="IE_Normal">
           <text>-</text>
         </inputEntry>
